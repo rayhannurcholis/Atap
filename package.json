@@ -1,0 +1,28 @@
+{
+  "name": "kostsolo-backend",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.js",
+    "prisma:migrate": "bunx prisma migrate dev",
+    "prisma:generate": "bunx prisma generate",
+    "prisma:studio": "bunx prisma studio"
+  },
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "prisma": "6"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@prisma/client": "6",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.3.1",
+    "hono": "^4.12.4",
+    "jsonwebtoken": "^9.0.3",
+    "nanoid": "^5.1.6",
+    "zod": "^4.3.6"
+  }
+}

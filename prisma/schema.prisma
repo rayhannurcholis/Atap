@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  OWNER
+  ADMIN
+}
+
+enum ListingStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  REJECTED
+}
+
+model User {
+  id              String   @id @default(cuid())
+  role            Role
+  email           String?  @unique
+  phone           String?  @unique
+  name            String
+  passwordHash    String?
+  isEmailVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ownerProfile    OwnerProfile?
+  adminLogs       AdminSessionLog[]
+  listings        KostListing[] @relation("OwnerListings")
+}
+
+model EmailOtp {
+  id        String   @id @default(cuid())
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model OwnerProfile {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  kostName   String?
+  location   String?
+  contact    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model WhatsAppOnboardingSession {
+  id            String   @id @default(cuid())
+  phone         String   @unique
+  step          Int      @default(1) // 1:name, 2:kostName, 3:location, 4:contact
+  name          String?
+  kostName      String?
+  location      String?
+  contact       String?
+  expiresAt     DateTime
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+}
+
+model KostListing {
+  id            String        @id @default(cuid())
+  ownerId       String
+  name          String
+  address       String
+  latitude      String
+  longitude     String
+  genderType    String
+  description   String
+  rules         String
+  contactNumber String
+  status        ListingStatus @default(PENDING)
+  isPremium     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  owner         User          @relation("OwnerListings", fields: [ownerId], references: [id])
+  roomTypes     RoomType[]
+}
+
+model RoomType {
+  id            String   @id @default(cuid())
+  listingId     String
+  name          String
+  price         Int
+  size          String
+  facilities    String[]
+  availableCount Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  listing       KostListing @relation(fields: [listingId], references: [id])
+  photos        RoomPhoto[]
+}
+
+model RoomPhoto {
+  id         String   @id @default(cuid())
+  roomTypeId String
+  key        String
+  url        String
+  createdAt  DateTime @default(now())
+
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+
+  @@index([roomTypeId])
+}
+
+model AdminSessionLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  admin     User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+}
