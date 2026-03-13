@@ -1,9 +1,11 @@
 import jwt from 'jsonwebtoken'
+import { sendOtpEmail } from '../../utils/mails.js'
 import db from '../../db.js'
 import { env } from '../../env.js'
 import { hashPassword, verifyPassword } from '../../utils/crypto.js'
 import { generateOtp, hashOtp, verifyOtp } from '../../utils/otp.js'
 import { generateResetToken, hashToken, verifyToken } from '../../utils/token.js'
+import { sendResetPasswordEmail } from '../../utils/mails.js'
 
 function signToken(user, expiresInDays) {
   return jwt.sign(
@@ -47,7 +49,7 @@ export async function registerUser(data) {
     }
   })
 
-  console.log(`[EMAIL OTP] ${data.email} -> ${otp}`)
+  await sendOtpEmail(data.email, otp)
 
   return {
     status: 201,
@@ -137,7 +139,7 @@ export async function resendUserOtp(data) {
     }
   })
 
-  console.log(`[RESEND EMAIL OTP] ${data.email} -> ${otp}`)
+  await sendOtpEmail(data.email, otp)
 
   return {
     data: {
@@ -213,6 +215,10 @@ export async function forgotUserPassword(data) {
       expiresAt: new Date(Date.now() + 60 * 60 * 1000)
     }
   })
+
+  const resetLink = `http://localhost:3000/reset-password?token=${rawToken}&email=${data.email}`
+
+  await sendResetPasswordEmail(data.email, resetLink)
 
   console.log(`[PASSWORD RESET] ${data.email} -> ${rawToken}`)
 

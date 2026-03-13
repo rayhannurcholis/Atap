@@ -45,8 +45,16 @@ export async function registerUserController(c) {
     return handleServiceResult(c, result)
   } catch (error) {
     if (error instanceof ZodError) return handleZodError(c, error)
-    console.error(error)
-    return c.json({ error: 'Failed to register user' }, 500)
+
+    console.error('REGISTER ERROR:', error)
+
+    return c.json(
+      {
+        error: 'Failed to register user',
+        detail: error?.message || String(error)
+      },
+      500
+    )
   }
 }
 

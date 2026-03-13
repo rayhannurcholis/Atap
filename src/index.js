@@ -35,3 +35,14 @@ app.route('/whatsapp', whatsappRoutes)
 app.route('/admin', adminRoutes)
 
 export default app
+
+import { serve } from 'bun'
+
+const port = process.env.PORT || 8080
+
+serve({
+  fetch: app.fetch,
+  port
+})
+
+console.log(`Server running on port ${port}`)
