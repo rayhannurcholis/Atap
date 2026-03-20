@@ -13,7 +13,7 @@ export const swaggerDocument = {
   paths: {
     '/auth/user/register': {
       post: {
-        tags: ['Auth'],
+        tags: ['User Auth'],
         summary: 'Register student',
         requestBody: {
           required: true,
@@ -32,19 +32,15 @@ export const swaggerDocument = {
           }
         },
         responses: {
-          201: {
-            description: 'Student registered successfully'
-          },
-          409: {
-            description: 'Duplicate email'
-          }
+          201: { description: 'Student registered successfully' },
+          409: { description: 'Duplicate email' }
         }
       }
     },
 
     '/auth/user/verify-email': {
       post: {
-        tags: ['Auth'],
+        tags: ['User Auth'],
         summary: 'Verify student email',
         requestBody: {
           required: true,
@@ -62,16 +58,14 @@ export const swaggerDocument = {
           }
         },
         responses: {
-          200: {
-            description: 'Email verified successfully'
-          }
+          200: { description: 'Email verified successfully' }
         }
       }
     },
 
     '/auth/user/resend-otp': {
       post: {
-        tags: ['Auth'],
+        tags: ['User Auth'],
         summary: 'Resend OTP',
         requestBody: {
           required: true,
@@ -88,16 +82,14 @@ export const swaggerDocument = {
           }
         },
         responses: {
-          200: {
-            description: 'OTP resent successfully'
-          }
+          200: { description: 'OTP resent successfully' }
         }
       }
     },
 
     '/auth/user/login': {
       post: {
-        tags: ['Auth'],
+        tags: ['User Auth'],
         summary: 'Student login',
         requestBody: {
           required: true,
@@ -116,19 +108,15 @@ export const swaggerDocument = {
           }
         },
         responses: {
-          200: {
-            description: 'Login success'
-          },
-          401: {
-            description: 'Invalid credentials'
-          }
+          200: { description: 'Login success' },
+          401: { description: 'Invalid credentials' }
         }
       }
     },
 
     '/auth/user/forgot-password': {
       post: {
-        tags: ['Auth'],
+        tags: ['User Auth'],
         summary: 'Forgot password',
         requestBody: {
           required: true,
@@ -145,16 +133,14 @@ export const swaggerDocument = {
           }
         },
         responses: {
-          200: {
-            description: 'Reset link requested'
-          }
+          200: { description: 'Reset link requested' }
         }
       }
     },
 
     '/auth/user/reset-password': {
       post: {
-        tags: ['Auth'],
+        tags: ['User Auth'],
         summary: 'Reset password',
         requestBody: {
           required: true,
@@ -173,16 +159,68 @@ export const swaggerDocument = {
           }
         },
         responses: {
-          200: {
-            description: 'Password reset successful'
+          200: { description: 'Password reset successful' }
+        }
+      }
+    },
+
+    '/auth/owner/register': {
+      post: {
+        tags: ['Owner Auth'],
+        summary: 'Register owner',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'phone', 'kostName', 'location', 'contact'],
+                properties: {
+                  name: { type: 'string', example: 'Pak Budi' },
+                  phone: { type: 'string', example: '08123456789' },
+                  kostName: { type: 'string', example: 'Kost Solo Putra' },
+                  location: { type: 'string', example: 'Solo Barat' },
+                  contact: { type: 'string', example: '08123456789' }
+                }
+              }
+            }
           }
+        },
+        responses: {
+          201: { description: 'Owner registered successfully' },
+          409: { description: 'Phone already used' }
+        }
+      }
+    },
+
+    '/auth/owner/request-otp': {
+      post: {
+        tags: ['Owner Auth'],
+        summary: 'Request owner OTP',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['phone'],
+                properties: {
+                  phone: { type: 'string', example: '08123456789' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'OTP generated successfully' },
+          404: { description: 'Owner not found' }
         }
       }
     },
 
     '/auth/owner/login': {
       post: {
-        tags: ['Auth'],
+        tags: ['Owner Auth'],
         summary: 'Owner login',
         requestBody: {
           required: true,
@@ -200,16 +238,16 @@ export const swaggerDocument = {
           }
         },
         responses: {
-          200: {
-            description: 'Owner login success'
-          }
+          200: { description: 'Owner login success' },
+          400: { description: 'Invalid OTP' },
+          404: { description: 'Owner not found' }
         }
       }
     },
 
     '/auth/admin/login': {
       post: {
-        tags: ['Auth'],
+        tags: ['Admin Auth'],
         summary: 'Admin login',
         requestBody: {
           required: true,
@@ -227,9 +265,406 @@ export const swaggerDocument = {
           }
         },
         responses: {
-          200: {
-            description: 'Admin login success'
+          200: { description: 'Admin login success' }
+        }
+      }
+    },
+
+    '/listings/owner': {
+      post: {
+        tags: ['Owner Listings'],
+        summary: 'Create kost listing',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: [
+                  'name',
+                  'address',
+                  'latitude',
+                  'longitude',
+                  'genderType',
+                  'description',
+                  'rules',
+                  'contactNumber'
+                ],
+                properties: {
+                  name: { type: 'string', example: 'Kost Solo Indah' },
+                  address: { type: 'string', example: 'Jl. Adi Sucipto No. 12, Surakarta' },
+                  latitude: { type: 'number', example: -7.557166 },
+                  longitude: { type: 'number', example: 110.821297 },
+                  genderType: {
+                    type: 'string',
+                    enum: ['PUTRA', 'PUTRI', 'CAMPUR'],
+                    example: 'PUTRA'
+                  },
+                  description: {
+                    type: 'string',
+                    example: 'Kost nyaman dekat kampus dan akses jalan utama.'
+                  },
+                  rules: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    example: ['Tidak boleh merokok', 'Tidak boleh bawa hewan']
+                  },
+                  contactNumber: { type: 'string', example: '081234567890' }
+                }
+              }
+            }
           }
+        },
+        responses: {
+          201: { description: 'Listing created successfully' },
+          400: { description: 'Invalid request body' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' }
+        }
+      },
+      get: {
+        tags: ['Owner Listings'],
+        summary: 'Get owner listings',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: 'Owner listings fetched successfully' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' }
+        }
+      }
+    },
+
+    '/listings/owner/{id}': {
+      get: {
+        tags: ['Owner Listings'],
+        summary: 'Get owner listing by id',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        responses: {
+          200: { description: 'Listing detail fetched successfully' },
+          404: { description: 'Listing not found' }
+        }
+      },
+      patch: {
+        tags: ['Owner Listings'],
+        summary: 'Update owner listing',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', example: 'Kost Solo Indah Updated' },
+                  address: { type: 'string', example: 'Jl. Adi Sucipto No. 99, Surakarta' },
+                  latitude: { type: 'number', example: -7.557166 },
+                  longitude: { type: 'number', example: 110.821297 },
+                  genderType: {
+                    type: 'string',
+                    enum: ['PUTRA', 'PUTRI', 'CAMPUR'],
+                    example: 'PUTRA'
+                  },
+                  description: {
+                    type: 'string',
+                    example: 'Kost nyaman, bersih, dekat kampus.'
+                  },
+                  rules: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    example: ['Tidak boleh merokok', 'Jam malam 22:00']
+                  },
+                  contactNumber: { type: 'string', example: '081299998888' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Listing updated successfully' },
+          400: { description: 'Invalid request body' },
+          404: { description: 'Listing not found' }
+        }
+      }
+    },
+
+    '/listings/owner/{id}/deactivate': {
+      patch: {
+        tags: ['Owner Listings'],
+        summary: 'Deactivate owner listing',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        responses: {
+          200: { description: 'Listing deactivated successfully' },
+          404: { description: 'Listing not found' }
+        }
+      }
+    },
+
+    '/listings': {
+      get: {
+        tags: ['Public Listings'],
+        summary: 'Get active public listings',
+        responses: {
+          200: { description: 'Public listings fetched successfully' }
+        }
+      }
+    },
+
+    '/listings/{id}': {
+      get: {
+        tags: ['Public Listings'],
+        summary: 'Get public listing detail',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        responses: {
+          200: { description: 'Public listing detail fetched successfully' },
+          404: { description: 'Listing not found' }
+        }
+      }
+    },
+
+    '/owner/listings/{id}/room-types': {
+      post: {
+        tags: ['Room Types'],
+        summary: 'Create room type',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'price', 'size', 'facilities', 'availableCount'],
+                properties: {
+                  name: { type: 'string', example: 'Kamar Standard' },
+                  price: { type: 'integer', example: 750000 },
+                  size: { type: 'string', example: '3x4' },
+                  facilities: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    example: ['Kasur', 'Lemari', 'Kamar mandi luar']
+                  },
+                  availableCount: { type: 'integer', example: 3 }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          201: { description: 'Room type created successfully' },
+          400: { description: 'Invalid request body' },
+          401: { description: 'Unauthorized' }
+        }
+      }
+    },
+
+    '/owner/room-types/{roomTypeId}': {
+      patch: {
+        tags: ['Room Types'],
+        summary: 'Update room type',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'roomTypeId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmroomtype123'
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', example: 'Kamar Deluxe' },
+                  price: { type: 'integer', example: 850000 },
+                  size: { type: 'string', example: '4x5' },
+                  facilities: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    example: ['Kasur', 'AC', 'Lemari']
+                  },
+                  availableCount: { type: 'integer', example: 2 }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Room type updated successfully' },
+          400: { description: 'Invalid request body' },
+          404: { description: 'Room type not found' }
+        }
+      },
+      delete: {
+        tags: ['Room Types'],
+        summary: 'Delete room type',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'roomTypeId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmroomtype123'
+          }
+        ],
+        responses: {
+          200: { description: 'Room type deleted successfully' },
+          404: { description: 'Room type not found' }
+        }
+      }
+    },
+
+    '/admin/listings/pending': {
+      get: {
+        tags: ['Admin Listings'],
+        summary: 'Get pending listings',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: { description: 'Pending listings fetched successfully' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' }
+        }
+      }
+    },
+
+    '/admin/listings/{id}/approve': {
+      patch: {
+        tags: ['Admin Listings'],
+        summary: 'Approve listing',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        responses: {
+          200: { description: 'Listing approved successfully' },
+          400: { description: 'Listing cannot be approved' },
+          404: { description: 'Listing not found' }
+        }
+      }
+    },
+
+    '/admin/listings/{id}/reject': {
+      patch: {
+        tags: ['Admin Listings'],
+        summary: 'Reject listing',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  rejectionReason: {
+                    type: 'string',
+                    example: 'Foto kamar belum tersedia'
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Listing rejected successfully' },
+          404: { description: 'Listing not found' }
+        }
+      }
+    },
+
+    '/admin/listings/{id}/premium': {
+      patch: {
+        tags: ['Admin Listings'],
+        summary: 'Set premium listing status',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['isPremium'],
+                properties: {
+                  isPremium: { type: 'boolean', example: true }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          200: { description: 'Premium status updated successfully' },
+          404: { description: 'Listing not found' }
         }
       }
     },
@@ -240,15 +675,9 @@ export const swaggerDocument = {
         summary: 'Admin dashboard',
         security: [{ bearerAuth: [] }],
         responses: {
-          200: {
-            description: 'Admin dashboard data'
-          },
-          401: {
-            description: 'Unauthorized'
-          },
-          403: {
-            description: 'Forbidden'
-          }
+          200: { description: 'Admin dashboard data' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' }
         }
       }
     }

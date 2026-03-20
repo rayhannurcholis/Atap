@@ -35,3 +35,20 @@ export const ownerLoginSchema = z.object({
   phone: z.string().min(8, 'Nomor telepon tidak valid'),
   otp: z.string().length(6, 'OTP harus 6 digit')
 })
+
+
+
+export const ownerRegisterSchema = z.object({
+  name: z.string().min(3),
+  phone: z.string().min(8).max(20),
+  kostName: z.string().min(3),
+  location: z.string().min(3),
+  contact: z.string().min(3)
+})
+
+
+
+export const ownerRequestOtpSchema = z.object({
+  phone: z.string().min(8).max(20)
+})
+

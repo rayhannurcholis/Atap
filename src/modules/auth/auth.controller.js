@@ -6,7 +6,9 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  ownerLoginSchema
+  ownerLoginSchema,
+  ownerRegisterSchema,
+  ownerRequestOtpSchema
 } from './auth.validator.js'
 import {
   registerUser,
@@ -16,7 +18,9 @@ import {
   forgotUserPassword,
   resetUserPassword,
   loginOwner,
-  loginAdmin
+  loginAdmin,
+  registerOwner,
+  
 } from './auth.service.js'
 
 function handleZodError(c, error) {
@@ -120,6 +124,32 @@ export async function resetUserPasswordController(c) {
     if (error instanceof ZodError) return handleZodError(c, error)
     console.error(error)
     return c.json({ error: 'Failed to reset password' }, 500)
+  }
+}
+
+export async function registerOwnerController(c) {
+  try {
+    const body = await c.req.json()
+    const data = ownerRegisterSchema.parse(body)
+    const result = await registerOwner(data)
+    return handleServiceResult(c, result)
+  } catch (error) {
+    if (error instanceof ZodError) return handleZodError(c, error)
+    console.error(error)
+    return c.json({ error: 'Failed to register owner' }, 500)
+  }
+}
+
+export async function requestOwnerOtpController(c) {
+  try {
+    const body = await c.req.json()
+    const data = ownerRequestOtpSchema.parse(body)
+    const result = await requestOwnerOtp(data)
+    return handleServiceResult(c, result)
+  } catch (error) {
+    if (error instanceof ZodError) return handleZodError(c, error)
+    console.error(error)
+    return c.json({ error: 'Failed to generate owner OTP' }, 500)
   }
 }
 

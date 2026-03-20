@@ -20,6 +20,12 @@ enum ListingStatus {
   REJECTED
 }
 
+enum GenderType {
+  PUTRA
+  PUTRI
+  CAMPUR
+}
+
 model User {
   id              String   @id @default(cuid())
   role            Role
@@ -62,7 +68,7 @@ model OwnerProfile {
 model WhatsAppOnboardingSession {
   id            String   @id @default(cuid())
   phone         String   @unique
-  step          Int      @default(1) // 1:name, 2:kostName, 3:location, 4:contact
+  step          Int      @default(1)
   name          String?
   kostName      String?
   location      String?
@@ -73,48 +79,60 @@ model WhatsAppOnboardingSession {
 }
 
 model KostListing {
-  id            String        @id @default(cuid())
-  ownerId       String
-  name          String
-  address       String
-  latitude      String
-  longitude     String
-  genderType    String
-  description   String
-  rules         String
-  contactNumber String
-  status        ListingStatus @default(PENDING)
-  isPremium     Boolean       @default(false)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  ownerId         String
+  name            String
+  address         String        @db.Text
+  latitude        Decimal       @db.Decimal(10, 7)
+  longitude       Decimal       @db.Decimal(10, 7)
+  genderType      GenderType
+  description     String        @db.Text
+  rules           String[]
+  contactNumber   String
+  status          ListingStatus @default(PENDING)
+  isPremium       Boolean       @default(false)
+  rejectionReason String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  owner         User          @relation("OwnerListings", fields: [ownerId], references: [id])
-  roomTypes     RoomType[]
+  owner           User          @relation("OwnerListings", fields: [ownerId], references: [id], onDelete: Cascade)
+  roomTypes       RoomType[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([isPremium])
+  @@index([createdAt])
 }
 
 model RoomType {
-  id            String   @id @default(cuid())
-  listingId     String
-  name          String
-  price         Int
-  size          String
-  facilities    String[]
+  id             String      @id @default(cuid())
+  listingId      String
+  name           String
+  price          Int
+  size           String
+  facilities     String[]
   availableCount Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  listing       KostListing @relation(fields: [listingId], references: [id])
-  photos        RoomPhoto[]
+  listing        KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  photos         RoomPhoto[]
+
+  @@index([listingId])
 }
 
 model RoomPhoto {
   id         String   @id @default(cuid())
   roomTypeId String
-  key        String
+  key        String   @unique
   url        String
+  mimeType   String?
+  sizeBytes  Int?
+  sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  roomType   RoomType @relation(fields: [roomTypeId], references: [id])
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
 
   @@index([roomTypeId])
 }

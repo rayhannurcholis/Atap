@@ -6,9 +6,9 @@ import { swaggerUI } from '@hono/swagger-ui'
 import './env.js'
 
 import authRoutes from './modules/auth/auth.routes.js'
-import listingsRoutes from './modules/listings/listings.routes.js'
+import listingsRoutes from './modules/listings/listing.routes.js'
 import whatsappRoutes from './modules/whatsapp/whatsapp.routes.js'
-import adminRoutes from './modules/admin/admin.routes.js'
+import adminRoutes from './modules/admin/adminListing.routes.js'
 import { swaggerDocument } from './docs/swagger.js'
 
 const app = new Hono()

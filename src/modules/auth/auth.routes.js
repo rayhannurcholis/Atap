@@ -7,7 +7,9 @@ import {
   forgotUserPasswordController,
   resetUserPasswordController,
   loginOwnerController,
-  loginAdminController
+  loginAdminController,
+  registerOwnerController,
+  requestOwnerOtpController
 } from './auth.controller.js'
 
 const router = new Hono()
@@ -20,6 +22,8 @@ router.post('/user/forgot-password', forgotUserPasswordController)
 router.post('/user/reset-password', resetUserPasswordController)
 
 router.post('/owner/login', loginOwnerController)
+router.post('/owner/register', registerOwnerController)
+router.post('/owner/request-otp', requestOwnerOtpController)
 
 router.post('/admin/login', loginAdminController)
 
