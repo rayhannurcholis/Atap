@@ -9,6 +9,6 @@ RUN bun install
 RUN bunx prisma generate
 RUN bunx prisma migrate deploy
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD ["bun", "run", "src/index.js"]
