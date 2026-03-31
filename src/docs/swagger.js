@@ -563,39 +563,183 @@ export const swaggerDocument = {
     },
 
     '/admin/listings/pending': {
-      get: {
-        tags: ['Admin Listings'],
-        summary: 'Get pending listings',
-        security: [{ bearerAuth: [] }],
-        responses: {
-          200: { description: 'Pending listings fetched successfully' },
-          401: { description: 'Unauthorized' },
-          403: { description: 'Forbidden' }
+  get: {
+    tags: ['Admin Listings'],
+    summary: 'Get pending listings',
+    description: 'Retrieve all kost listings with status PENDING for admin review',
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'Pending listings fetched successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: [
+                {
+                  id: 'cm123',
+                  name: 'Kost Mawar',
+                  status: 'PENDING',
+                  owner: {
+                    id: 'user123',
+                    name: 'Budi',
+                    phone: '0812344444'
+                  },
+                  roomTypes: []
+                }
+              ]
+            }
+          }
+        }
+      },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' }
+    }
+  }
+},
+
+'/owner/room-types/{roomTypeId}/photos': {
+  post: {
+    tags: ['Photos'],
+    summary: 'Upload room photos',
+    description: 'Owner uploads one or more photos for a room type',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'roomTypeId',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmroomtype123abc'
+      }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'multipart/form-data': {
+          schema: {
+            type: 'object',
+            required: ['photos'],
+            properties: {
+              photos: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                  format: 'binary'
+                }
+              }
+            }
+          }
         }
       }
     },
+    responses: {
+      201: {
+        description: 'Photos uploaded successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Photos uploaded successfully',
+              data: [
+                {
+                  id: 'cmphoto123',
+                  roomTypeId: 'cmroomtype123abc',
+                  key: 'room-types/cmroomtype123abc/uuid-kamar.jpg',
+                  url: 'https://cdn.kostsolo.com/room-types/cmroomtype123abc/uuid-kamar.jpg',
+                  mimeType: 'image/jpeg',
+                  sizeBytes: 421321,
+                  sortOrder: 0,
+                  createdAt: '2026-03-31T10:00:00.000Z',
+                  updatedAt: '2026-03-31T10:00:00.000Z'
+                }
+              ]
+            }
+          }
+        }
+      },
+      400: {
+        description: 'Upload failed or validation error'
+      },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' },
+      404: { description: 'Room type not found' }
+    }
+  }
+},
+
+'/owner/photos/{photoId}': {
+  delete: {
+    tags: ['Photos'],
+    summary: 'Delete room photo',
+    description: 'Owner deletes a photo from their own room type',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'photoId',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmphoto123'
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Photo deleted successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Photo deleted successfully'
+            }
+          }
+        }
+      },
+      400: {
+        description: 'Failed to delete photo'
+      },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' },
+      404: { description: 'Photo not found' }
+    }
+  }
+},
 
     '/admin/listings/{id}/approve': {
-      patch: {
-        tags: ['Admin Listings'],
-        summary: 'Approve listing',
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: 'id',
-            in: 'path',
-            required: true,
-            schema: { type: 'string' },
-            example: 'cmabc123listingid'
-          }
-        ],
-        responses: {
-          200: { description: 'Listing approved successfully' },
-          400: { description: 'Listing cannot be approved' },
-          404: { description: 'Listing not found' }
-        }
+  patch: {
+    tags: ['Admin Listings'],
+    summary: 'Approve listing',
+    description: 'Approve a pending listing. Listing must have at least 1 room type and 1 photo.',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmabc123listingid'
       }
-    },
+    ],
+    responses: {
+      200: {
+        description: 'Listing approved successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Listing approved successfully',
+              data: {
+                id: 'cmabc123listingid',
+                status: 'ACTIVE'
+              }
+            }
+          }
+        }
+      },
+      400: {
+        description: 'Listing cannot be approved (missing room type or photo)'
+      },
+      404: { description: 'Listing not found' }
+    }
+  }
+},
 
     '/admin/listings/{id}/reject': {
       patch: {
@@ -681,6 +825,8 @@ export const swaggerDocument = {
         }
       }
     }
+
+    
   },
   components: {
     securitySchemes: {

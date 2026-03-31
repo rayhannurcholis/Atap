@@ -10,6 +10,10 @@ import listingsRoutes from './modules/listings/listing.routes.js'
 import whatsappRoutes from './modules/whatsapp/whatsapp.routes.js'
 import adminRoutes from './modules/admin/adminListing.routes.js'
 import { swaggerDocument } from './docs/swagger.js'
+import roomTypeRoutes from './modules/room-types/roomType.routes.js'
+import photoRoutes from './modules/photos/photo.routes.js'
+
+
 
 const app = new Hono()
 
@@ -33,6 +37,8 @@ app.route('/auth', authRoutes)
 app.route('/listings', listingsRoutes)
 app.route('/whatsapp', whatsappRoutes)
 app.route('/admin', adminRoutes)
+app.route('/owner', roomTypeRoutes)
+app.route("/owner", photoRoutes)
 
 export default app
 

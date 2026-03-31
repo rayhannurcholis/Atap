@@ -18,6 +18,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1020.0",
     "@hono/swagger-ui": "^0.6.0",
     "@hono/zod-openapi": "^1.2.2",
     "@prisma/client": "6",
@@ -27,6 +28,7 @@
     "jsonwebtoken": "^9.0.3",
     "nanoid": "^5.1.6",
     "nodemailer": "^8.0.2",
+    "sharp": "^0.34.5",
     "zod": "^4.3.6"
   }
 }

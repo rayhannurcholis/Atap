@@ -20,7 +20,7 @@ import {
   loginOwner,
   loginAdmin,
   registerOwner,
-  
+  requestOwnerOtp
 } from './auth.service.js'
 
 function handleZodError(c, error) {
