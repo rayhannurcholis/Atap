@@ -68,7 +68,7 @@ export const photoController = {
       return c.json(
         {
           message: error.message || "Failed to delete photo",
-        },
+        },      
         400
       );
     }

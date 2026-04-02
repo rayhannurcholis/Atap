@@ -6,28 +6,28 @@ import { adminListingController } from "./adminListing.controller.js";
 const adminListingRoutes = new Hono();
 
 adminListingRoutes.get(
-  "/admin/listings/pending",
+  "/listings/pending",
   authRequired(),
   requireRole("ADMIN"),
   adminListingController.getPending
 );
 
 adminListingRoutes.patch(
-  "/admin/listings/:id/approve",
+  "/listings/:id/approve",
   authRequired(),
   requireRole("ADMIN"),
   adminListingController.approve
 );
 
 adminListingRoutes.patch(
-  "/admin/listings/:id/reject",
+  "/listings/:id/reject",
   authRequired(),
   requireRole("ADMIN"),
   adminListingController.reject
 );
 
 adminListingRoutes.patch(
-  "/admin/listings/:id/premium",
+  "/listings/:id/premium",
   authRequired(),
   requireRole("ADMIN"),
   adminListingController.setPremium

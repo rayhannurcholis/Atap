@@ -23,7 +23,7 @@ export const listingService = {
   async getOwnerListings(ownerId) {
     return db.kostListing.findMany({
       where: { ownerId },
-      include: {
+      include: {  
         roomTypes: {
           include: {
             photos: true,

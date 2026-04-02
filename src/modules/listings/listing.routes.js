@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { listingController } from "./listing.controller.js";
+import { searchController } from "../search/search.controller.js";
 import { createListingSchema, updateListingSchema } from "./listing.schema.js";
 import { authRequired } from "../../middleware/auth.js";
 import { requireRole } from "../../middleware/role.js";
+
 
 const listingsRoutes = new Hono();
 
@@ -46,6 +48,7 @@ listingsRoutes.patch(
 );
 
 // public
+listingsRoutes.get("/search", searchController.search);
 listingsRoutes.get("/", listingController.getPublicListings);
 listingsRoutes.get("/:id", listingController.getPublicListingById);
 

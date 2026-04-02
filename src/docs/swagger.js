@@ -824,7 +824,94 @@ export const swaggerDocument = {
           403: { description: 'Forbidden' }
         }
       }
+    },
+
+    '/listings/search': {
+  get: {
+    tags: ['Search & Discovery'],
+    summary: 'Search active kost listings',
+    description: 'Search active listings by keyword, price range, gender type, and sorting option',
+    parameters: [
+      {
+        name: 'q',
+        in: 'query',
+        required: false,
+        schema: { type: 'string' },
+        example: 'mawar',
+        description: 'Keyword search by kost name or address'
+      },
+      {
+        name: 'minPrice',
+        in: 'query',
+        required: false,
+        schema: { type: 'integer', minimum: 0 },
+        example: 500000,
+        description: 'Minimum monthly price filter'
+      },
+      {
+        name: 'maxPrice',
+        in: 'query',
+        required: false,
+        schema: { type: 'integer', minimum: 0 },
+        example: 1500000,
+        description: 'Maximum monthly price filter'
+      },
+      {
+        name: 'genderType',
+        in: 'query',
+        required: false,
+        schema: {
+          type: 'string',
+          enum: ['PUTRA', 'PUTRI', 'CAMPUR']
+        },
+        example: 'PUTRI',
+        description: 'Filter by gender type'
+      },
+      {
+        name: 'sort',
+        in: 'query',
+        required: false,
+        schema: {
+          type: 'string',
+          enum: ['relevance', 'lowest_price', 'highest_price', 'newest']
+        },
+        example: 'lowest_price',
+        description: 'Sort search results'
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Search results fetched successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: [
+                {
+                  id: 'cmlisting123',
+                  name: 'Kost Mawar Putri',
+                  address: 'Jl. Melati No. 10, Kentingan, Surakarta',
+                  genderType: 'PUTRI',
+                  isPremium: true,
+                  latitude: -7.556,
+                  longitude: 110.821,
+                  createdAt: '2026-03-31T10:00:00.000Z',
+                  cheapestPrice: 750000,
+                  thumbnailUrl: 'https://cdn.kostsolo.com/room-types/cmroom123/photo1.jpg'
+                }
+              ]
+            }
+          }
+        }
+      },
+      400: {
+        description: 'Invalid search query or failed to search listings'
+      }
     }
+  }
+}
+
+    
 
     
   },
@@ -834,7 +921,8 @@ export const swaggerDocument = {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT'
-      }
+      },
+      
     }
   }
 }

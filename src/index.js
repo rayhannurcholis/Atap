@@ -40,6 +40,7 @@ app.route('/admin', adminRoutes)
 app.route('/owner', roomTypeRoutes)
 app.route("/owner", photoRoutes)
 
+
 export default app
 
 import { serve } from 'bun'
