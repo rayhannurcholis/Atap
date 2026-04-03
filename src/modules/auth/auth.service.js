@@ -452,35 +452,37 @@ export async function registerOwner(data) {
   }
 }
 
-export async function requestOwnerOtp(data) {
+export async function requestOwnerOtp({ phone }) {
   const owner = await db.user.findUnique({
-    where: { phone: data.phone }
-  })
+    where: { phone }
+  });
 
-  if (!owner || owner.role !== 'OWNER') {
-    return { error: 'Owner not found', status: 404 }
+  if (!owner || owner.role !== "OWNER") {
+    return { error: "Owner not found", status: 404 };
   }
 
-  const otp = generateOtp()
-  const codeHash = await hashOtp(otp)
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  console.log("[OWNER OTP LOGIN]", phone, "->", otp);
+
+  const codeHash = await hashOtp(otp);
 
   await db.emailOtp.create({
     data: {
-      email: ownerOtpEmail(data.phone),
+      email: ownerOtpEmail(phone),
       codeHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-    }
-  })
-
-  console.log(`[OWNER OTP LOGIN] ${data.phone} -> ${otp}`)
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    },
+  });
 
   return {
     data: {
-      message: 'OTP generated successfully',
-      otpPreview: otp
+      message: "OTP generated successfully",
+      otpPreview: otp,
     }
-  }
+  };
 }
+
 
 export async function loginOwner(data) {
   const owner = await db.user.findUnique({

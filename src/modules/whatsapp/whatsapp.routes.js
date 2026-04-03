@@ -1,17 +1,9 @@
-import { Hono } from 'hono'
+import { Hono } from "hono";
+import { whatsappController } from "./whatsapp.controller.js";
 
-const router = new Hono()
+const router = new Hono();
 
-router.get('/webhook', (c) => {
-  return c.text('WhatsApp webhook ready')
-})
+router.get("/webhook", whatsappController.verifyWebhook);
+router.post("/webhook", whatsappController.handleWebhook);
 
-router.post('/webhook', async (c) => {
-  const body = await c.req.json()
-  return c.json({
-    message: 'Incoming WhatsApp webhook received',
-    body
-  })
-})
-
-export default router
+export default router;

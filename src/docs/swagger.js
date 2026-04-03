@@ -1,3 +1,5 @@
+import {whatsappWebhookPath} from "./whatsapp"
+
 export const swaggerDocument = {
   openapi: '3.0.0',
   info: {
@@ -11,6 +13,7 @@ export const swaggerDocument = {
     }
   ],
   paths: {
+    ...whatsappWebhookPath,
     '/auth/user/register': {
       post: {
         tags: ['User Auth'],
@@ -909,7 +912,9 @@ export const swaggerDocument = {
       }
     }
   }
-}
+},
+
+
 
     
 
