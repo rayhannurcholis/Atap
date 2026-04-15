@@ -1,8 +1,9 @@
-import { Hono } from "hono";
-import { searchController } from "./search.controller.js";
+import { Hono } from 'hono'
+import { searchController } from './search.controller.js'
 
-const searchRoutes = new Hono();
+const searchRoutes = new Hono()
 
-searchRoutes.get("/listings/search", searchController.search);
+// GET /search/listings
+searchRoutes.get('/listings', searchController.search)
 
-export default searchRoutes;
+export default searchRoutes

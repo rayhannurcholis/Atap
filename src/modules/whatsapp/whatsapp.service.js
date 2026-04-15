@@ -1,150 +1,170 @@
 import db from "../../db.js";
 import { requestOwnerOtp, loginOwner } from "../auth/auth.service.js";
+import {
+  parseIncomingMessage,
+  normalizeText,
+  parseOtpCommand,
+  parseUpdateProfileCommand,
+  parseIndexedUpdateCommand,
+} from "./whatsapp.parser.js";
+import {
+  menuReply,
+  defaultReply,
+  askNameReply,
+  askKostNameReply,
+  askLocationReply,
+  askContactReply,
+  ownerRegisteredReply,
+  ownerAlreadyExistsReply,
+  ownerNotRegisteredReply,
+  ownerNotFoundReply,
+  ownerProfileNotFoundReply,
+  otpFormatReply,
+  otpSuccessReply,
+  updateProfileHelpReply,
+  updateProfileUnknownFieldReply,
+  updateProfileSuccessReply,
+  emptyListingReply,
+  indexedPriceFormatReply,
+  indexedStockFormatReply,
+  listingSessionNotFoundReply,
+  invalidListingNumberReply,
+  invalidRoomNumberReply,
+  updatePriceSuccessReply,
+  updateStockSuccessReply,
+  otpReply,
+  listingReply,
+} from "./whatsapp.reply.js";
+
+const waSessionMap = new Map();
 
 export const whatsappService = {
   async handleWebhookPayload(body) {
-    const entry = body?.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const value = changes?.value;
-    const message = value?.messages?.[0];
+    const parsed = parseIncomingMessage(body);
+    if (!parsed) return;
 
-    if (!message) return;
-
-    const phone = message.from;
-    const text = message.text?.body || "";
+    const { phone, text } = parsed;
 
     console.log("📩 Incoming WA:", { phone, text });
-
     await this.handleIncomingMessage(phone, text);
   },
 
   async handleIncomingMessage(phone, text) {
-  const normalized = text.trim().toUpperCase();
+    const normalized = normalizeText(text);
 
-  const session = await db.whatsAppOnboardingSession.findUnique({
-    where: { phone },
-  });
-
-  if (session && session.expiresAt > new Date()) {
-    await this.handleOnboardingStep(session, phone, text);
-    return;
-  }
-
-  if (normalized === "MENU") {
-  await this.sendMessage(
-    phone,
-    "Halo 👋\n\nPerintah:\nDAFTAR - daftar owner\nLOGIN - minta OTP login\nLISTING - lihat listing\nUPDATE HARGA <roomTypeId> <harga>\nUPDATE STOK <roomTypeId> <jumlah>"
-  );
-  return;
-}
-
-  if (normalized === "DAFTAR") {
-    await db.whatsAppOnboardingSession.upsert({
-      where: { phone },
-      update: {
-        step: 1,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-        lastMessageAt: new Date(),
-        name: null,
-        kostName: null,
-        location: null,
-        contact: null,
-      },
-      create: {
-        phone,
-        step: 1,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-      },
-    });
-
-    await this.sendMessage(phone, "Siapa nama Anda?");
-    return;
-  }
-
-  if (normalized === "LOGIN") {
-    const existingOwner = await db.user.findUnique({
+    const session = await db.whatsAppOnboardingSession.findUnique({
       where: { phone },
     });
 
-    if (!existingOwner || existingOwner.role !== "OWNER") {
-      await this.sendMessage(
-        phone,
-        "Nomor ini belum terdaftar sebagai owner. Ketik DAFTAR untuk membuat akun."
-      );
+    if (session && session.expiresAt > new Date()) {
+      await this.handleOnboardingStep(session, phone, text);
       return;
     }
 
-    const result = await requestOwnerOtp({ phone });
+    if (normalized === "MENU" || normalized === "HELP") {
+      await this.sendMessage(phone, menuReply());
+      return;
+    }
 
-    await this.sendMessage(
-      phone,
-      `OTP login Anda: ${result.data.otpPreview}\nKirim: OTP <kode>`
-    );
-    return;
-  }
+    if (normalized === "DAFTAR") {
+      await db.whatsAppOnboardingSession.upsert({
+        where: { phone },
+        update: {
+          step: 1,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          lastMessageAt: new Date(),
+          name: null,
+          kostName: null,
+          location: null,
+          contact: null,
+        },
+        create: {
+          phone,
+          step: 1,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+        },
+      });
 
-  if (normalized.startsWith("OTP ")) {
-  const otp = text.trim().split(/\s+/)[1];
+      await this.sendMessage(phone, askNameReply());
+      return;
+    }
 
-  if (!otp) {
-    await this.sendMessage(phone, "Format salah. Gunakan: OTP 123456");
-    return;
-  }
+    if (normalized === "LOGIN") {
+      const existingOwner = await db.user.findUnique({
+        where: { phone },
+      });
 
-  const result = await loginOwner({ phone, otp });
+      if (!existingOwner || existingOwner.role !== "OWNER") {
+        await this.sendMessage(phone, ownerNotRegisteredReply());
+        return;
+      }
 
-  if (result?.error) {
-    await this.sendMessage(
-      phone,
-      result.error || "OTP tidak valid atau sudah expired."
-    );
-    return;
-  }
+      const result = await requestOwnerOtp({ phone });
 
-  await this.sendMessage(phone, "Login berhasil ✅");
+      if (result?.error) {
+        await this.sendMessage(phone, result.error);
+        return;
+      }
 
-  console.log("Owner login success:", {
-    phone,
-    token: result?.data?.token,
-  });
+      await this.sendMessage(phone, otpReply(result.data.otpPreview));
+      return;
+    }
 
-  return;
-};
+    if (normalized.startsWith("OTP ")) {
+      const otp = parseOtpCommand(text);
 
-if (normalized.startsWith("UPDATE ")) {
-  await this.handleUpdateCommand(phone, text);
-  return;
-};
+      if (!otp) {
+        await this.sendMessage(phone, otpFormatReply());
+        return;
+      }
 
-if (normalized === "UPDATE") {
-  await this.sendMessage(
-    phone,
-    "Gunakan:\nUPDATE NAMAKOST <nama>\nUPDATE LOKASI <alamat>\nUPDATE KONTAK <no>"
-  );
-  return;
-};
+      const result = await loginOwner({ phone, otp });
 
-if (normalized === "LISTING") {
-  await this.handleListingCommand(phone);
-  return;
-}
+      if (result?.error) {
+        await this.sendMessage(
+          phone,
+          result.error || "OTP tidak valid atau sudah expired."
+        );
+        return;
+      }
 
-if (normalized.startsWith("UPDATE HARGA ")) {
-  await this.handleUpdatePrice(phone, text);
-  return;
-}
+      await this.sendMessage(phone, otpSuccessReply());
 
-if (normalized.startsWith("UPDATE STOK ")) {
-  await this.handleUpdateStock(phone, text);
-  return;
-}
+      console.log("Owner login success:", {
+        phone,
+        token: result?.data?.token,
+      });
 
+      return;
+    }
 
-  await this.sendMessage(
-    phone,
-    "Halo 👋\nKetik MENU untuk melihat perintah."
-  );
-},
+    if (normalized === "UPDATE") {
+      await this.sendMessage(phone, updateProfileHelpReply());
+      return;
+    }
+
+    if (normalized === "LISTING") {
+      await this.handleListingCommand(phone);
+      return;
+    }
+
+    if (normalized.startsWith("UPDATE HARGA ")) {
+      await this.handleUpdatePrice(phone, text);
+      return;
+    }
+
+    if (normalized.startsWith("UPDATE STOK ")) {
+      await this.handleUpdateStock(phone, text);
+      return;
+    }
+
+    if (normalized.startsWith("UPDATE ")) {
+      await this.handleUpdateCommand(phone, text);
+      return;
+    }
+
+    await this.sendMessage(phone, defaultReply());
+  },
 
   async handleOnboardingStep(session, phone, text) {
     if (session.step === 1) {
@@ -157,7 +177,7 @@ if (normalized.startsWith("UPDATE STOK ")) {
         },
       });
 
-      await this.sendMessage(phone, "Nama kost Anda?");
+      await this.sendMessage(phone, askKostNameReply());
       return;
     }
 
@@ -171,7 +191,7 @@ if (normalized.startsWith("UPDATE STOK ")) {
         },
       });
 
-      await this.sendMessage(phone, "Lokasi kost Anda?");
+      await this.sendMessage(phone, askLocationReply());
       return;
     }
 
@@ -185,7 +205,7 @@ if (normalized.startsWith("UPDATE STOK ")) {
         },
       });
 
-      await this.sendMessage(phone, "Nomor kontak kost?");
+      await this.sendMessage(phone, askContactReply());
       return;
     }
 
@@ -195,10 +215,7 @@ if (normalized.startsWith("UPDATE STOK ")) {
       });
 
       if (existingOwner) {
-        await this.sendMessage(
-          phone,
-          "Nomor ini sudah terdaftar sebagai owner."
-        );
+        await this.sendMessage(phone, ownerAlreadyExistsReply());
         return;
       }
 
@@ -211,227 +228,249 @@ if (normalized.startsWith("UPDATE STOK ")) {
       });
 
       await db.user.create({
-  data: {
-    name: updated.name,
-    phone,
-    role: "OWNER",
-    isEmailVerified: true,
-    ownerProfile: {
-      create: {
-        kostName: updated.kostName,
-        location: updated.location,
-        contact: text,
-      },
-    },
-  },
-});
+        data: {
+          name: updated.name,
+          phone,
+          role: "OWNER",
+          isEmailVerified: true,
+          ownerProfile: {
+            create: {
+              kostName: updated.kostName,
+              location: updated.location,
+              contact: text,
+            },
+          },
+        },
+      });
 
-await db.whatsAppOnboardingSession.delete({
-  where: { phone },
-});
+      await db.whatsAppOnboardingSession.delete({
+        where: { phone },
+      });
 
-await this.sendMessage(
-  phone,
-  "Pendaftaran selesai ✅\nAkun owner berhasil dibuat.\nKetik LOGIN untuk masuk."
-);
-
-return;
+      await this.sendMessage(phone, ownerRegisteredReply());
     }
-  },
-
-  async sendMessage(to, text) {
-    console.log("📤 Send WA:", { to, text });
   },
 
   async handleUpdateCommand(phone, text) {
-  const owner = await db.user.findUnique({
-    where: { phone },
-    include: { ownerProfile: true }
-  });
+    const owner = await db.user.findUnique({
+      where: { phone },
+      include: { ownerProfile: true },
+    });
 
-  if (!owner || owner.role !== "OWNER") {
-    await this.sendMessage(
-      phone,
-      "Nomor ini belum terdaftar sebagai owner."
-    );
-    return;
-  }
-
-  if (!owner.ownerProfile) {
-    await this.sendMessage(
-      phone,
-      "Profil owner tidak ditemukan."
-    );
-    return;
-  }
-
-  const parts = text.split(" ");
-  const field = parts[1]; // NAMAKOST / LOKASI / KONTAK
-  const value = parts.slice(2).join(" ").trim();
-
-  if (!field || !value) {
-    await this.sendMessage(
-      phone,
-      "Format salah.\nGunakan:\nUPDATE NAMAKOST <nama>\nUPDATE LOKASI <alamat>\nUPDATE KONTAK <no>"
-    );
-    return;
-  }
-
-  // mapping field
-  let data = {};
-
-  if (field === "NAMAKOST") {
-    data.kostName = value;
-  } else if (field === "LOKASI") {
-    data.location = value;
-  } else if (field === "KONTAK") {
-    data.contact = value;
-  } else {
-    await this.sendMessage(
-      phone,
-      "Field tidak dikenali.\nGunakan: NAMAKOST / LOKASI / KONTAK"
-    );
-    return;
-  }
-
-  await db.ownerProfile.update({
-    where: { userId: owner.id },
-    data,
-  });
-
-  await this.sendMessage(
-    phone,
-    `Berhasil update ${field} ✅`
-  );
-},
-
-async handleListingCommand(phone) {
-  const owner = await db.user.findUnique({
-    where: { phone },
-    include: {
-      listings: {
-        include: {
-          roomTypes: true,
-        },
-      },
-    },
-  });
-
-  if (!owner || owner.role !== "OWNER") {
-    await this.sendMessage(phone, "Owner tidak ditemukan.");
-    return;
-  }
-
-  if (!owner.listings || owner.listings.length === 0) {
-    await this.sendMessage(phone, "Anda belum punya listing.");
-    return;
-  }
-
-  let message = "Daftar listing Anda:\n";
-
-  owner.listings.forEach((listing, index) => {
-    message += `\n${index + 1}. ${listing.name}\n`;
-
-    if (!listing.roomTypes || listing.roomTypes.length === 0) {
-      message += "- Belum ada room type\n";
+    if (!owner || owner.role !== "OWNER") {
+      await this.sendMessage(phone, ownerNotRegisteredReply());
       return;
     }
 
-    listing.roomTypes.forEach((room) => {
-      message += `- ${room.id} | ${room.name} | Rp${room.price} | stok ${room.availableCount}\n`;
+    if (!owner.ownerProfile) {
+      await this.sendMessage(phone, ownerProfileNotFoundReply());
+      return;
+    }
+
+    const { field, value } = parseUpdateProfileCommand(text);
+
+    if (!field || !value) {
+      await this.sendMessage(phone, updateProfileHelpReply());
+      return;
+    }
+
+    let data = {};
+
+    if (field === "NAMAKOST") {
+      data.kostName = value;
+    } else if (field === "LOKASI") {
+      data.location = value;
+    } else if (field === "KONTAK") {
+      data.contact = value;
+    } else {
+      await this.sendMessage(phone, updateProfileUnknownFieldReply());
+      return;
+    }
+
+    await db.ownerProfile.update({
+      where: { userId: owner.id },
+      data,
     });
-  });
 
-  await this.sendMessage(phone, message.trim());
-},
+    await this.sendMessage(phone, updateProfileSuccessReply(field));
+  },
 
-async handleUpdatePrice(phone, text) {
-  const parts = text.trim().split(/\s+/);
-
-  const roomTypeId = parts[2];
-  const price = Number(parts[3]);
-
-  if (!roomTypeId || Number.isNaN(price)) {
-    await this.sendMessage(
-      phone,
-      "Format salah.\nGunakan: UPDATE HARGA <roomTypeId> <harga>"
-    );
-    return;
-  }
-
-  const owner = await db.user.findUnique({
-    where: { phone },
-    include: {
-      listings: {
-        include: { roomTypes: true },
+  async handleListingCommand(phone) {
+    const owner = await db.user.findUnique({
+      where: { phone },
+      include: {
+        listings: {
+          include: {
+            roomTypes: true,
+          },
+        },
       },
-    },
-  });
+    });
 
-  if (!owner || owner.role !== "OWNER") {
-    await this.sendMessage(phone, "Owner tidak ditemukan.");
-    return;
-  }
+    if (!owner || owner.role !== "OWNER") {
+      await this.sendMessage(phone, ownerNotFoundReply());
+      return;
+    }
 
-  const ownedRoom = owner.listings
-    .flatMap((listing) => listing.roomTypes || [])
-    .find((room) => room.id === roomTypeId);
+    if (!owner.listings || owner.listings.length === 0) {
+      await this.sendMessage(phone, emptyListingReply());
+      return;
+    }
 
-  if (!ownedRoom) {
-    await this.sendMessage(phone, "Room type tidak ditemukan atau bukan milik Anda.");
-    return;
-  }
+    const listingRefs = owner.listings.map((listing, listingIndex) => ({
+      index: listingIndex + 1,
+      id: listing.id,
+      name: listing.name,
+      rooms: (listing.roomTypes || []).map((room, roomIndex) => ({
+        index: roomIndex + 1,
+        id: room.id,
+        name: room.name,
+        price: room.price,
+        availableCount: room.availableCount,
+      })),
+    }));
 
-  await db.roomType.update({
-    where: { id: roomTypeId },
-    data: { price },
-  });
+    this.setSession(phone, { listingRefs });
+    await this.sendMessage(phone, listingReply(listingRefs));
+  },
 
-  await this.sendMessage(phone, `Harga room ${roomTypeId} berhasil diupdate ✅`);
-},
+  async handleUpdatePrice(phone, text) {
+    const { listingNumber, roomNumber, value: price } =
+      parseIndexedUpdateCommand(text);
 
-async handleUpdateStock(phone, text) {
-  const parts = text.trim().split(/\s+/);
+    if (
+      Number.isNaN(listingNumber) ||
+      Number.isNaN(roomNumber) ||
+      Number.isNaN(price)
+    ) {
+      await this.sendMessage(phone, indexedPriceFormatReply());
+      return;
+    }
 
-  const roomTypeId = parts[2];
-  const stock = Number(parts[3]);
+    const found = this.findRoomFromSession(phone, listingNumber, roomNumber);
 
-  if (!roomTypeId || Number.isNaN(stock) || stock < 0) {
-    await this.sendMessage(
-      phone,
-      "Format salah.\nGunakan: UPDATE STOK <roomTypeId> <jumlah>"
+    if (found.error) {
+      await this.sendMessage(phone, found.error);
+      return;
+    }
+
+    const { room } = found;
+
+    await db.roomType.update({
+      where: { id: room.id },
+      data: { price },
+    });
+
+    await this.sendMessage(phone, updatePriceSuccessReply(room.name, price));
+  },
+
+  async handleUpdateStock(phone, text) {
+    const { listingNumber, roomNumber, value: stock } =
+      parseIndexedUpdateCommand(text);
+
+    if (
+      Number.isNaN(listingNumber) ||
+      Number.isNaN(roomNumber) ||
+      Number.isNaN(stock) ||
+      stock < 0
+    ) {
+      await this.sendMessage(phone, indexedStockFormatReply());
+      return;
+    }
+
+    const found = this.findRoomFromSession(phone, listingNumber, roomNumber);
+
+    if (found.error) {
+      await this.sendMessage(phone, found.error);
+      return;
+    }
+
+    const { room } = found;
+
+    await db.roomType.update({
+      where: { id: room.id },
+      data: { availableCount: stock },
+    });
+
+    await this.sendMessage(phone, updateStockSuccessReply(room.name, stock));
+  },
+
+  getSession(phone) {
+    return waSessionMap.get(phone);
+  },
+
+  setSession(phone, data) {
+    waSessionMap.set(phone, {
+      ...data,
+      createdAt: Date.now(),
+    });
+  },
+
+  clearExpiredSession(phone) {
+    const session = waSessionMap.get(phone);
+    if (!session) return;
+
+    const maxAge = 30 * 60 * 1000;
+    if (Date.now() - session.createdAt > maxAge) {
+      waSessionMap.delete(phone);
+    }
+  },
+
+  findRoomFromSession(phone, listingNumber, roomNumber) {
+    this.clearExpiredSession(phone);
+
+    const session = this.getSession(phone);
+
+    if (!session?.listingRefs?.length) {
+      return { error: listingSessionNotFoundReply() };
+    }
+
+    const listing = session.listingRefs.find(
+      (item) => item.index === listingNumber
     );
-    return;
-  }
 
-  const owner = await db.user.findUnique({
-    where: { phone },
-    include: {
-      listings: {
-        include: { roomTypes: true },
+    if (!listing) {
+      return { error: invalidListingNumberReply() };
+    }
+
+    const room = listing.rooms.find((item) => item.index === roomNumber);
+
+    if (!room) {
+      return { error: invalidRoomNumberReply() };
+    }
+
+    return { listing, room };
+  },
+
+  async sendMessage(to, text) {
+    const url = `https://graph.facebook.com/v23.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
       },
-    },
-  });
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: {
+          body: text,
+        },
+      }),
+    });
 
-  if (!owner || owner.role !== "OWNER") {
-    await this.sendMessage(phone, "Owner tidak ditemukan.");
-    return;
-  }
+    const result = await response.json();
 
-  const ownedRoom = owner.listings
-    .flatMap((listing) => listing.roomTypes || [])
-    .find((room) => room.id === roomTypeId);
+    if (!response.ok) {
+      console.error("WA send failed:", result);
+      throw new Error(
+        result?.error?.message || "Failed to send WhatsApp message"
+      );
+    }
 
-  if (!ownedRoom) {
-    await this.sendMessage(phone, "Room type tidak ditemukan atau bukan milik Anda.");
-    return;
-  }
-
-  await db.roomType.update({
-    where: { id: roomTypeId },
-    data: { availableCount: stock },
-  });
-
-  await this.sendMessage(phone, `Stok room ${roomTypeId} berhasil diupdate ✅`);
-}
+    console.log("WA sent:", result);
+    return result;
+  },
 };

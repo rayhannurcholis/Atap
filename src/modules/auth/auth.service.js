@@ -1,13 +1,10 @@
 import jwt from 'jsonwebtoken'
-import { sendOtpEmail } from '../../utils/mails.js'
+import { sendOtpEmail, sendResetPasswordEmail } from '../../utils/mails.js'
 import db from '../../db.js'
 import { env } from '../../env.js'
 import { hashPassword, verifyPassword } from '../../utils/crypto.js'
 import { generateOtp, hashOtp, verifyOtp } from '../../utils/otp.js'
 import { generateResetToken, hashToken, verifyToken } from '../../utils/token.js'
-import { sendResetPasswordEmail } from '../../utils/mails.js'
-
-
 
 export function signToken(user, expiresInDays = 7) {
   return jwt.sign(
@@ -288,6 +285,109 @@ export async function resetUserPassword(data) {
   }
 }
 
+export async function registerOwner(data) {
+  const existingPhone = await db.user.findUnique({
+    where: { phone: data.phone }
+  })
+
+  if (existingPhone) {
+    return { error: 'Phone already used', status: 409 }
+  }
+
+  if (!data.email) {
+    return { error: 'Email is required for owner registration', status: 400 }
+  }
+
+  const existingEmail = await db.user.findUnique({
+    where: { email: data.email }
+  })
+
+  if (existingEmail) {
+    return { error: 'Email already used', status: 409 }
+  }
+
+  const owner = await db.user.create({
+    data: {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      role: 'OWNER',
+      isEmailVerified: true,
+      ownerProfile: {
+        create: {
+          kostName: data.kostName,
+          location: data.location,
+          contact: data.contact
+        }
+      }
+    },
+    include: {
+      ownerProfile: true
+    }
+  })
+
+  const otp = generateOtp()
+  const codeHash = await hashOtp(otp)
+
+  await db.emailOtp.create({
+    data: {
+      email: owner.email,
+      codeHash,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+    }
+  })
+
+  await sendOtpEmail(owner.email, otp)
+
+  return {
+    status: 201,
+    data: {
+      message: 'Owner registered successfully. OTP has been sent to email.',
+      user: {
+        id: owner.id,
+        name: owner.name,
+        email: owner.email,
+        phone: owner.phone,
+        role: owner.role
+      },
+      ownerProfile: owner.ownerProfile
+    }
+  }
+}
+
+export async function requestOwnerOtp({ phone }) {
+  const owner = await db.user.findUnique({
+    where: { phone }
+  })
+
+  if (!owner || owner.role !== 'OWNER') {
+    return { error: 'Owner not found', status: 404 }
+  }
+
+  if (!owner.email) {
+    return { error: 'Owner email not set', status: 400 }
+  }
+
+  const otp = generateOtp()
+  const codeHash = await hashOtp(otp)
+
+  await db.emailOtp.create({
+    data: {
+      email: owner.email,
+      codeHash,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+    }
+  })
+
+  await sendOtpEmail(owner.email, otp)
+
+  return {
+    data: {
+      message: 'OTP sent successfully to email'
+    }
+  }
+}
+
 export async function loginOwner(data) {
   const owner = await db.user.findUnique({
     where: { phone: data.phone },
@@ -301,9 +401,13 @@ export async function loginOwner(data) {
     return { error: 'Owner not found', status: 404 }
   }
 
+  if (!owner.email) {
+    return { error: 'Owner email not set', status: 400 }
+  }
+
   const latestOtp = await db.emailOtp.findFirst({
     where: {
-      email: owner.email ?? '',
+      email: owner.email,
       usedAt: null
     },
     orderBy: { createdAt: 'desc' }
@@ -387,158 +491,6 @@ export async function loginAdmin(data, meta) {
         email: admin.email,
         role: admin.role
       }
-    }
-  }
-}
-
-function ownerOtpEmail(phone) {
-  return `${phone}@owner.local`
-}
-
-export async function registerOwner(data) {
-  const existingPhone = await db.user.findUnique({
-    where: { phone: data.phone }
-  })
-
-  if (existingPhone) {
-    return { error: 'Phone already used', status: 409 }
-  }
-
-  const owner = await db.user.create({
-    data: {
-      name: data.name,
-      phone: data.phone,
-      role: 'OWNER',
-      isEmailVerified: true,
-      ownerProfile: {
-        create: {
-          kostName: data.kostName,
-          location: data.location,
-          contact: data.contact
-        }
-      }
-    },
-    include: {
-      ownerProfile: true
-    }
-  })
-
-  const otp = generateOtp()
-  const codeHash = await hashOtp(otp)
-
-  await db.emailOtp.create({
-    data: {
-      email: ownerOtpEmail(data.phone),
-      codeHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-    }
-  })
-
-  console.log(`[OWNER OTP REGISTER] ${data.phone} -> ${otp}`)
-
-  return {
-    status: 201,
-    data: {
-      message: 'Owner registered successfully. OTP has been generated.',
-      otpPreview: otp,
-      user: {
-        id: owner.id,
-        name: owner.name,
-        phone: owner.phone,
-        role: owner.role
-      },
-      ownerProfile: owner.ownerProfile
-    }
-  }
-}
-
-export async function requestOwnerOtp({ phone }) {
-  const owner = await db.user.findUnique({
-    where: { phone }
-  });
-
-  if (!owner || owner.role !== "OWNER") {
-    return { error: "Owner not found", status: 404 };
-  }
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-  console.log("[OWNER OTP LOGIN]", phone, "->", otp);
-
-  const codeHash = await hashOtp(otp);
-
-  await db.emailOtp.create({
-    data: {
-      email: ownerOtpEmail(phone),
-      codeHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    },
-  });
-
-  return {
-    data: {
-      message: "OTP generated successfully",
-      otpPreview: otp,
-    }
-  };
-}
-
-
-export async function loginOwner(data) {
-  const owner = await db.user.findUnique({
-    where: { phone: data.phone },
-    include: {
-      ownerProfile: true,
-      listings: true
-    }
-  })
-
-  if (!owner || owner.role !== 'OWNER') {
-    return { error: 'Owner not found', status: 404 }
-  }
-
-  const latestOtp = await db.emailOtp.findFirst({
-    where: {
-      email: ownerOtpEmail(data.phone),
-      usedAt: null
-    },
-    orderBy: { createdAt: 'desc' }
-  })
-
-  if (!latestOtp) {
-    return { error: 'OTP not found', status: 404 }
-  }
-
-  if (latestOtp.expiresAt < new Date()) {
-    return { error: 'OTP expired', status: 400 }
-  }
-
-  const validOtp = await verifyOtp(data.otp, latestOtp.codeHash)
-
-  if (!validOtp) {
-    return { error: 'Invalid OTP', status: 400 }
-  }
-
-  await db.emailOtp.update({
-    where: { id: latestOtp.id },
-    data: { usedAt: new Date() }
-  })
-
-  const token = signToken(owner, 1)
-
-  return {
-    data: {
-      message: 'Owner login success',
-      token,
-      expiresInDays: 1,
-      user: {
-        id: owner.id,
-        name: owner.name,
-        phone: owner.phone,
-        role: owner.role
-      },
-      ownerProfile: owner.ownerProfile,
-      listings: owner.listings
     }
   }
 }
