@@ -72,36 +72,35 @@ export const searchService = {
           : [{ createdAt: 'desc' }]
     })
 
-    let results = listings
-      .map((listing) => {
-        const cheapestPrice =
-          listing.roomTypes.length > 0
-            ? Math.min(...listing.roomTypes.map((room) => Number(room.price)))
-            : null
+    let results = listings.map((listing) => {
+      const cheapestPrice =
+        listing.roomTypes.length > 0
+          ? Math.min(...listing.roomTypes.map((room) => Number(room.price)))
+          : null
 
-        const firstPhoto =
-          listing.roomTypes
-            .flatMap((room) => room.photos)
-            .sort((a, b) => a.sortOrder - b.sortOrder)[0] || null
+      const firstPhoto =
+        listing.roomTypes
+          .flatMap((room) => room.photos)
+          .sort((a, b) => a.sortOrder - b.sortOrder)[0] || null
 
-        const allFacilities = listing.roomTypes.flatMap((room) =>
-          Array.isArray(room.facilities) ? room.facilities : []
-        )
+      const allFacilities = listing.roomTypes.flatMap((room) =>
+        Array.isArray(room.facilities) ? room.facilities : []
+      )
 
-        return {
-          id: listing.id,
-          name: listing.name,
-          address: listing.address,
-          genderType: listing.genderType,
-          isPremium: listing.isPremium,
-          latitude: listing.latitude !== null ? Number(listing.latitude) : null,
-          longitude: listing.longitude !== null ? Number(listing.longitude) : null,
-          createdAt: listing.createdAt,
-          cheapestPrice,
-          thumbnailUrl: firstPhoto?.url || null,
-          facilities: [...new Set(allFacilities)]
-        }
-      })
+      return {
+        id: listing.id,
+        name: listing.name,
+        address: listing.address,
+        genderType: listing.genderType,
+        isPremium: listing.isPremium,
+        latitude: listing.latitude !== null ? Number(listing.latitude) : null,
+        longitude: listing.longitude !== null ? Number(listing.longitude) : null,
+        createdAt: listing.createdAt,
+        cheapestPrice,
+        thumbnailUrl: firstPhoto?.url || null,
+        facilities: [...new Set(allFacilities)]
+      }
+    })
 
     if (minPrice !== undefined) {
       results = results.filter(
@@ -120,7 +119,7 @@ export const searchService = {
 
       results = results.filter((item) => {
         const itemFacilities = item.facilities.map((facility) =>
-          facility.toLowerCase()
+          String(facility).toLowerCase()
         )
 
         return normalizedFacilities.every((facility) =>
