@@ -1,55 +1,55 @@
-import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
-import { listingController } from "./listing.controller.js";
-import { searchController } from "../search/search.controller.js";
-import { createListingSchema, updateListingSchema } from "./listing.schema.js";
-import { authRequired } from "../../middleware/auth.js";
-import { requireRole } from "../../middleware/role.js";
+import { Hono } from 'hono'
+import { zValidator } from '@hono/zod-validator'
+import { listingController } from './listing.controller.js'
+import { listingDetailController } from './listing.detail.controller.js'
+import { searchController } from '../search/search.controller.js'
+import { createListingSchema, updateListingSchema } from './listing.schema.js'
+import { authRequired } from '../../middleware/auth.js'
+import { requireRole } from '../../middleware/role.js'
 
-
-const listingsRoutes = new Hono();
+const listingsRoutes = new Hono()
 
 // owner listing
 listingsRoutes.post(
-  "/owner",
+  '/owner',
   authRequired(),
-  requireRole("OWNER"),
-  zValidator("json", createListingSchema),
+  requireRole('OWNER'),
+  zValidator('json', createListingSchema),
   listingController.create
-);
+)
 
 listingsRoutes.get(
-  "/owner",
+  '/owner',
   authRequired(),
-  requireRole("OWNER"),
+  requireRole('OWNER'),
   listingController.getOwnerListings
-);
+)
 
 listingsRoutes.get(
-  "/owner/:id",
+  '/owner/:id',
   authRequired(),
-  requireRole("OWNER"),
+  requireRole('OWNER'),
   listingController.getOwnerListingById
-);
+)
 
 listingsRoutes.patch(
-  "/owner/:id",
+  '/owner/:id',
   authRequired(),
-  requireRole("OWNER"),
-  zValidator("json", updateListingSchema),
+  requireRole('OWNER'),
+  zValidator('json', updateListingSchema),
   listingController.update
-);
+)
 
 listingsRoutes.patch(
-  "/owner/:id/deactivate",
+  '/owner/:id/deactivate',
   authRequired(),
-  requireRole("OWNER"),
+  requireRole('OWNER'),
   listingController.deactivate
-);
+)
 
 // public
-listingsRoutes.get("/search", searchController.search);
-listingsRoutes.get("/", listingController.getPublicListings);
-listingsRoutes.get("/:id", listingController.getPublicListingById);
+listingsRoutes.get('/search', searchController.search)
+listingsRoutes.get('/', listingController.getPublicListings)
+listingsRoutes.get('/:id', listingDetailController.getById)
 
-export default listingsRoutes;
+export default listingsRoutes

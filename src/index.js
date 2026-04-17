@@ -13,7 +13,7 @@ import { swaggerDocument } from './docs/swagger.js'
 import roomTypeRoutes from './modules/room-types/roomType.routes.js'
 import photoRoutes from './modules/photos/photo.routes.js'
 import searchRoutes from './modules/search/search.routes.js'
-
+import favoriteRoutes from './modules/favorites/favorite.routes.js'
 
 
 const app = new Hono()
@@ -39,14 +39,13 @@ app.route('/listings', listingsRoutes)
 app.route('/whatsapp', whatsappRoutes)
 app.route('/admin', adminRoutes)
 app.route('/owner', roomTypeRoutes)
-app.route("/owner", photoRoutes)
-app.route("/search", searchRoutes)
-
+app.route('/owner', photoRoutes)
+app.route('/search', searchRoutes)
+app.route('/favorites', favoriteRoutes)
 
 export default app
 
 import { serve } from 'bun'
-
 
 const port = process.env.PORT || 8080
 
