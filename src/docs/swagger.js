@@ -1146,6 +1146,788 @@ export const swaggerDocument = {
         }
       }
     },
+    '/chats/start': {
+  post: {
+    tags: ['Chat'],
+    summary: 'Start chat thread with owner',
+    description:
+      'Create or get an existing chat thread between the authenticated student and the owner of a listing',
+    security: [{ bearerAuth: [] }],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['listingId'],
+            properties: {
+              listingId: {
+                type: 'string',
+                example: 'cmo1o24e50003rm0ky4uu9shm'
+              },
+              initialMessage: {
+                type: 'string',
+                example: 'Halo, kamar ini masih tersedia?'
+              }
+            }
+          }
+        }
+      }
+    },
+    responses: {
+      200: {
+        description: 'Chat thread ready',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Chat thread ready',
+              data: {
+                id: 'cmo40g31f0001rmqky2t7gbyd',
+                listing: {
+                  id: 'cmo1o24e50003rm0ky4uu9shm',
+                  name: 'Kost Solo Indah'
+                },
+                student: {
+                  id: 'cmo33zcne0000rm80yc6kshaz',
+                  name: 'Rayhan'
+                },
+                owner: {
+                  id: 'cmnyuqvxj0000rm48l9r5lket',
+                  name: 'Rehan',
+                  kostName: 'Kost Solo Putra'
+                },
+                messages: [
+                  {
+                    id: 'cmo40g31f0003rmqkh00zmrjb',
+                    senderId: 'cmo33zcne0000rm80yc6kshaz',
+                    message: 'Halo, kamar ini masih tersedia?',
+                    sentAt: '2026-04-18T07:23:21.314Z',
+                    readAt: null
+                  }
+                ],
+                createdAt: '2026-04-18T07:23:21.314Z',
+                updatedAt: '2026-04-18T07:23:21.314Z'
+              }
+            }
+          }
+        }
+      },
+      400: { description: 'Invalid request or cannot chat with own listing' },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' },
+      404: { description: 'Listing not found' }
+    }
+  }
+},
+
+'/chats': {
+  get: {
+    tags: ['Chat'],
+    summary: 'Get my chat threads',
+    description:
+      'Get all chat threads for the authenticated user. Students see their chats with owners, owners see chats from students.',
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'Chat threads fetched successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: [
+                {
+                  id: 'cmo40g31f0001rmqky2t7gbyd',
+                  listing: {
+                    id: 'cmo1o24e50003rm0ky4uu9shm',
+                    name: 'Kost Solo Indah'
+                  },
+                  displayName: 'Kost Solo Putra',
+                  student: {
+                    id: 'cmo33zcne0000rm80yc6kshaz',
+                    name: 'Rayhan'
+                  },
+                  owner: {
+                    id: 'cmnyuqvxj0000rm48l9r5lket',
+                    name: 'Rehan',
+                    kostName: 'Kost Solo Putra'
+                  },
+                  lastMessage: {
+                    id: 'cmo40g31f0003rmqkh00zmrjb',
+                    senderId: 'cmo33zcne0000rm80yc6kshaz',
+                    message: 'Halo, kamar ini masih tersedia?',
+                    sentAt: '2026-04-18T07:23:21.314Z',
+                    readAt: null
+                  },
+                  updatedAt: '2026-04-18T07:23:21.314Z',
+                  createdAt: '2026-04-18T07:23:21.314Z'
+                }
+              ]
+            }
+          }
+        }
+      },
+      401: { description: 'Unauthorized' }
+    }
+  }
+},
+
+'/chats/{threadId}': {
+  get: {
+    tags: ['Chat'],
+    summary: 'Get chat thread detail',
+    description: 'Get all messages in a chat thread accessible by the authenticated user',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'threadId',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmo40g31f0001rmqky2t7gbyd'
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Chat thread detail fetched successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: {
+                id: 'cmo40g31f0001rmqky2t7gbyd',
+                listing: {
+                  id: 'cmo1o24e50003rm0ky4uu9shm',
+                  name: 'Kost Solo Indah'
+                },
+                student: {
+                  id: 'cmo33zcne0000rm80yc6kshaz',
+                  name: 'Rayhan'
+                },
+                owner: {
+                  id: 'cmnyuqvxj0000rm48l9r5lket',
+                  name: 'Rehan',
+                  kostName: 'Kost Solo Putra'
+                },
+                messages: [
+                  {
+                    id: 'cmo40g31f0003rmqkh00zmrjb',
+                    senderId: 'cmo33zcne0000rm80yc6kshaz',
+                    message: 'Halo, kamar ini masih tersedia?',
+                    sentAt: '2026-04-18T07:23:21.314Z',
+                    readAt: null
+                  }
+                ],
+                createdAt: '2026-04-18T07:23:21.314Z',
+                updatedAt: '2026-04-18T07:23:21.314Z'
+              }
+            }
+          }
+        }
+      },
+      401: { description: 'Unauthorized' },
+      404: { description: 'Chat thread not found' }
+    }
+  }
+},
+
+'/chats/{threadId}/messages': {
+  post: {
+    tags: ['Chat'],
+    summary: 'Send chat message',
+    description: 'Send a new message to an existing chat thread',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'threadId',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmo40g31f0001rmqky2t7gbyd'
+      }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['message'],
+            properties: {
+              message: {
+                type: 'string',
+                example: 'Bisa survey hari ini?'
+              }
+            }
+          }
+        }
+      }
+    },
+    responses: {
+      200: {
+        description: 'Message sent successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Message sent',
+              data: {
+                id: 'cmo40g31f0001rmqky2t7gbyd',
+                listing: {
+                  id: 'cmo1o24e50003rm0ky4uu9shm',
+                  name: 'Kost Solo Indah'
+                },
+                student: {
+                  id: 'cmo33zcne0000rm80yc6kshaz',
+                  name: 'Rayhan'
+                },
+                owner: {
+                  id: 'cmnyuqvxj0000rm48l9r5lket',
+                  name: 'Rehan',
+                  kostName: 'Kost Solo Putra'
+                },
+                messages: [
+                  {
+                    id: 'cmo40g31f0003rmqkh00zmrjb',
+                    senderId: 'cmo33zcne0000rm80yc6kshaz',
+                    message: 'Halo, kamar ini masih tersedia?',
+                    sentAt: '2026-04-18T07:23:21.314Z',
+                    readAt: null
+                  },
+                  {
+                    id: 'cmo40msg90007rmqkabc12345',
+                    senderId: 'cmo33zcne0000rm80yc6kshaz',
+                    message: 'Bisa survey hari ini?',
+                    sentAt: '2026-04-18T07:30:00.000Z',
+                    readAt: null
+                  }
+                ],
+                createdAt: '2026-04-18T07:23:21.314Z',
+                updatedAt: '2026-04-18T07:30:00.000Z'
+              }
+            }
+          }
+        }
+      },
+      400: { description: 'Invalid request body' },
+      401: { description: 'Unauthorized' },
+      404: { description: 'Chat thread not found' }
+    }
+  }
+},
+
+'/listings/{id}/view': {
+  post: {
+    tags: ['Views'],
+    summary: 'Track listing view',
+    description:
+      'Track a listing detail page view. Supports guest and authenticated users with 1-hour deduplication for the same user/session.',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmo1o24e50003rm0ky4uu9shm'
+      },
+      {
+        name: 'x-session-key',
+        in: 'header',
+        required: false,
+        schema: { type: 'string' },
+        example: 'guest-session-abc123'
+      }
+    ],
+    responses: {
+      200: {
+        description: 'View tracked successfully',
+        content: {
+          'application/json': {
+            examples: {
+              counted: {
+                summary: 'View counted',
+                value: {
+                  message: 'View counted successfully',
+                  data: {
+                    counted: true
+                  }
+                }
+              },
+              deduplicated: {
+                summary: 'View not counted due to 1-hour deduplication',
+                value: {
+                  message: 'View already counted within 1 hour',
+                  data: {
+                    counted: false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      404: {
+        description: 'Listing not found'
+      },
+      400: {
+        description: 'Failed to track listing view'
+      }
+    }
+  }
+},
+
+'/owner/listings/{id}/views': {
+  get: {
+    tags: ['Views'],
+    summary: 'Get owner listing view summary',
+    description:
+      'Get totalViews and todayViews for a listing owned by the authenticated owner.',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmo1o24e50003rm0ky4uu9shm'
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Listing view summary retrieved successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: {
+                listingId: 'cmo1o24e50003rm0ky4uu9shm',
+                totalViews: 128,
+                todayViews: 7
+              }
+            }
+          }
+        }
+      },
+      401: {
+        description: 'Unauthorized'
+      },
+      403: {
+        description: 'Forbidden'
+      },
+      404: {
+        description: 'Listing not found'
+      },
+      400: {
+        description: 'Failed to get listing view summary'
+      }
+    }
+  }
+},
+
+'/listings/{id}/report': {
+  post: {
+    tags: ['Reports'],
+    summary: 'Report listing',
+    description: 'User reports a listing as inaccurate, closed, or fraudulent.',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmo1o24e50003rm0ky4uu9shm'
+      }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['reason'],
+            properties: {
+              reason: {
+                type: 'string',
+                enum: [
+                  'TIDAK_AKTIF',
+                  'FOTO_TIDAK_SESUAI',
+                  'INFORMASI_SALAH',
+                  'PENIPUAN'
+                ],
+                example: 'INFORMASI_SALAH'
+              },
+              note: {
+                type: 'string',
+                example: 'Harga tidak sesuai saat dihubungi'
+              }
+            }
+          }
+        }
+      }
+    },
+    responses: {
+      200: {
+        description: 'Listing reported successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Listing reported successfully',
+              data: {
+                id: 'cmreport123',
+                listingId: 'cmo1o24e50003rm0ky4uu9shm',
+                reason: 'INFORMASI_SALAH'
+              }
+            }
+          }
+        }
+      },
+      400: {
+        description: 'Failed to report listing'
+      },
+      401: {
+        description: 'Unauthorized'
+      },
+      404: {
+        description: 'Listing not found'
+      }
+    }
+  }
+},
+
+'/owner/dashboard': {
+  get: {
+    tags: ['Owner'],
+    summary: 'Get owner dashboard summary',
+    description: 'Get listing stats, views, and leads for the owner dashboard.',
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'Dashboard summary retrieved successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: {
+                totalListings: 3,
+                activeListings: 2,
+                totalViews: 128,
+                todayViews: 7,
+                weeklyViews: 31,
+                totalLeads: 15,
+                activeChats: 4
+              }
+            }
+          }
+        }
+      },
+      401: {
+        description: 'Unauthorized'
+      },
+      403: {
+        description: 'Forbidden'
+      },
+      400: {
+        description: 'Failed to get dashboard summary'
+      }
+    }
+  }
+},
+
+'/owner/listings/{id}/analytics': {
+  get: {
+    tags: ['Owner'],
+    summary: 'Get owner listing analytics',
+    description: 'Get analytics summary for one owner listing, including views, leads, active chats, and daily views for the last 7 days.',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmo1o24e50003rm0ky4uu9shm'
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Listing analytics retrieved successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: {
+                listingId: 'cmo1o24e50003rm0ky4uu9shm',
+                listingName: 'Kost Solo Indah',
+                status: 'ACTIVE',
+                totalViews: 128,
+                todayViews: 7,
+                weeklyViews: 31,
+                totalLeads: 15,
+                activeChats: 4,
+                viewsPerDay: [
+                  { date: '2026-04-12', views: 2 },
+                  { date: '2026-04-13', views: 5 },
+                  { date: '2026-04-14', views: 3 },
+                  { date: '2026-04-15', views: 7 },
+                  { date: '2026-04-16', views: 4 },
+                  { date: '2026-04-17', views: 6 },
+                  { date: '2026-04-18', views: 4 }
+                ]
+              }
+            }
+          }
+        }
+      },
+      401: {
+        description: 'Unauthorized'
+      },
+      403: {
+        description: 'Forbidden'
+      },
+      404: {
+        description: 'Listing not found'
+      },
+      400: {
+        description: 'Failed to get listing analytics'
+      }
+    }
+  }
+},
+'/admin/dashboard': {
+  get: {
+    tags: ['Admin'],
+    summary: 'Get admin dashboard summary',
+    description: 'Get platform summary metrics for admin dashboard.',
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: {
+        description: 'Admin dashboard summary retrieved successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: {
+                totalListings: 120,
+                activeListings: 98,
+                totalStudents: 540,
+                totalOwners: 76,
+                newUsersThisWeek: 32,
+                totalViewsToday: 187
+              }
+            }
+          }
+        }
+      },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' },
+      400: { description: 'Failed to get admin dashboard summary' }
+    }
+  }
+},
+
+'/admin/analytics/top-listings': {
+  get: {
+    tags: ['Admin'],
+    summary: 'Get top viewed listings',
+    description: 'Get top listings ranked by total views.',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'limit',
+        in: 'query',
+        required: false,
+        schema: { type: 'integer', default: 10 },
+        example: 10
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Top listings retrieved successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: [
+                {
+                  id: 'cmo1o24e50003rm0ky4uu9shm',
+                  name: 'Kost Solo Indah',
+                  status: 'ACTIVE',
+                  owner: {
+                    id: 'cmnyuqvxj0000rm48l9r5lket',
+                    name: 'Rehan'
+                  },
+                  totalViews: 128,
+                  totalLeads: 15,
+                  totalFavorites: 23
+                },
+                {
+                  id: 'cmo1o24e50003rm0ky4uu9abc',
+                  name: 'Kost Putri Manahan',
+                  status: 'ACTIVE',
+                  owner: {
+                    id: 'cmnyuqvxj0000rm48l9r5lxyz',
+                    name: 'Nadia'
+                  },
+                  totalViews: 101,
+                  totalLeads: 11,
+                  totalFavorites: 19
+                }
+              ]
+            }
+          }
+        }
+      },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' },
+      400: { description: 'Failed to get top listings' }
+    }
+  }
+},
+'/admin/reports': {
+  get: {
+    tags: ['Admin'],
+    summary: 'Get listing reports',
+    description: 'Get reported listings for admin review.',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'status',
+        in: 'query',
+        required: false,
+        schema: {
+          type: 'string',
+          enum: ['PENDING', 'DISMISSED', 'RESOLVED']
+        },
+        example: 'PENDING'
+      },
+      {
+        name: 'limit',
+        in: 'query',
+        required: false,
+        schema: {
+          type: 'integer',
+          default: 20
+        },
+        example: 20
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Reports retrieved successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: [
+                {
+                  id: 'cmreport123',
+                  listingId: 'cmo1o24e50003rm0ky4uu9shm',
+                  userId: 'cmo33zcne0000rm80yc6kshaz',
+                  reason: 'INFORMASI_SALAH',
+                  note: 'Harga tidak sesuai saat dihubungi',
+                  status: 'PENDING',
+                  action: null,
+                  reviewedAt: null,
+                  reviewedById: null,
+                  createdAt: '2026-04-18T08:00:00.000Z',
+                  listing: {
+                    id: 'cmo1o24e50003rm0ky4uu9shm',
+                    name: 'Kost Solo Indah',
+                    status: 'ACTIVE',
+                    ownerId: 'cmnyuqvxj0000rm48l9r5lket'
+                  },
+                  user: {
+                    id: 'cmo33zcne0000rm80yc6kshaz',
+                    name: 'Rayhan',
+                    email: 'rayhan@example.com'
+                  },
+                  reviewedBy: null
+                }
+              ]
+            }
+          }
+        }
+      },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' },
+      400: { description: 'Failed to get reports' }
+    }
+  }
+},
+
+'/admin/reports/{id}': {
+  patch: {
+    tags: ['Admin'],
+    summary: 'Review listing report',
+    description: 'Review a report by dismissing it or deactivating the related listing.',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: { type: 'string' },
+        example: 'cmreport123'
+      }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['action'],
+            properties: {
+              action: {
+                type: 'string',
+                enum: ['DISMISS', 'DEACTIVATE_LISTING'],
+                example: 'DEACTIVATE_LISTING'
+              }
+            }
+          }
+        }
+      }
+    },
+    responses: {
+      200: {
+        description: 'Report reviewed successfully',
+        content: {
+          'application/json': {
+            examples: {
+              dismiss: {
+                summary: 'Dismiss report',
+                value: {
+                  message: 'Report dismissed successfully',
+                  data: {
+                    id: 'cmreport123',
+                    status: 'DISMISSED',
+                    action: 'DISMISS',
+                    listingId: 'cmo1o24e50003rm0ky4uu9shm'
+                  }
+                }
+              },
+              deactivate: {
+                summary: 'Deactivate related listing',
+                value: {
+                  message: 'Report reviewed and listing deactivated successfully',
+                  data: {
+                    id: 'cmreport123',
+                    status: 'RESOLVED',
+                    action: 'DEACTIVATE_LISTING',
+                    listingId: 'cmo1o24e50003rm0ky4uu9shm'
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      400: { description: 'Invalid action or report already reviewed' },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' },
+      404: { description: 'Report not found' }
+    }
+  }
+}
   },
 
   
@@ -1158,4 +1940,4 @@ export const swaggerDocument = {
       }
     }
   }
-}
+  }

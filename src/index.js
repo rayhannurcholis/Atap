@@ -14,6 +14,12 @@ import roomTypeRoutes from './modules/room-types/roomType.routes.js'
 import photoRoutes from './modules/photos/photo.routes.js'
 import searchRoutes from './modules/search/search.routes.js'
 import favoriteRoutes from './modules/favorites/favorite.routes.js'
+import chatRoutes from './modules/chat/chat.routes.js'
+import viewRoutes from './modules/views/view.routes.js'
+import reportRoutes from './modules/reports/report.routes.js'
+import ownerRoutes from './modules/owner/owner.routes.js'
+import adminAnalyticsRoutes from './modules/analytics/admin.routes.js'
+
 
 
 const app = new Hono()
@@ -40,8 +46,14 @@ app.route('/whatsapp', whatsappRoutes)
 app.route('/admin', adminRoutes)
 app.route('/owner', roomTypeRoutes)
 app.route('/owner', photoRoutes)
+app.route('/owner', ownerRoutes)
 app.route('/search', searchRoutes)
 app.route('/favorites', favoriteRoutes)
+app.route('/chats', chatRoutes)
+app.route('/', viewRoutes)
+app.route('/', reportRoutes)
+app.route('/admin', adminAnalyticsRoutes)
+
 
 export default app
 
