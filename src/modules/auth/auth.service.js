@@ -364,26 +364,22 @@ export async function requestOwnerOtp({ phone }) {
     return { error: 'Owner not found', status: 404 }
   }
 
-  if (!owner.email) {
-    return { error: 'Owner email not set', status: 400 }
-  }
-
   const otp = generateOtp()
   const codeHash = await hashOtp(otp)
 
+  // sementara simpan OTP owner login dengan key phone di field email
   await db.emailOtp.create({
     data: {
-      email: owner.email,
+      email: owner.phone,
       codeHash,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000)
     }
   })
 
-  await sendOtpEmail(owner.email, otp)
-
   return {
     data: {
-      message: 'OTP sent successfully to email'
+      message: 'OTP generated successfully',
+      otpPreview: otp
     }
   }
 }
@@ -401,13 +397,9 @@ export async function loginOwner(data) {
     return { error: 'Owner not found', status: 404 }
   }
 
-  if (!owner.email) {
-    return { error: 'Owner email not set', status: 400 }
-  }
-
   const latestOtp = await db.emailOtp.findFirst({
     where: {
-      email: owner.email,
+      email: owner.phone,
       usedAt: null
     },
     orderBy: { createdAt: 'desc' }

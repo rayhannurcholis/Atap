@@ -32,18 +32,94 @@ import {
   invalidRoomNumberReply,
   updatePriceSuccessReply,
   updateStockSuccessReply,
-  otpReply,
   listingReply,
 } from "./whatsapp.reply.js";
 
 const waSessionMap = new Map();
+const greetedMap = new Map();
+
+const ONBOARDING_TTL_MS = 30 * 60 * 1000;
+const LISTING_SESSION_TTL_MS = 30 * 60 * 1000;
+
+function isTooShort(value, min = 3) {
+  return !value || value.trim().length < min;
+}
+
+function normalizePhone(value) {
+  return (value || "").replace(/\D/g, "");
+}
+
+function confirmOwnerRegistrationReply(data) {
+  return [
+    "Konfirmasi data pendaftaran:",
+    "",
+    `Nama: ${data.name}`,
+    `Nama Kost: ${data.kostName}`,
+    `Lokasi: ${data.location}`,
+    `Kontak: ${data.contact}`,
+    "",
+    "Balas YA untuk menyimpan.",
+    "Balas TIDAK untuk membatalkan.",
+  ].join("\n");
+}
+
+function registrationCancelledReply() {
+  return "Pendaftaran dibatalkan. Ketik DAFTAR untuk mulai lagi.";
+}
+
+function confirmationFormatReply() {
+  return "Balas YA untuk menyimpan atau TIDAK untuk membatalkan.";
+}
+
+function introReply() {
+  return [
+    "Halo 👋",
+    "Saya bot KostSolo.",
+    "",
+    "Ketik MENU untuk melihat perintah.",
+    "Ketik DAFTAR untuk daftar owner.",
+  ].join("\n");
+}
+
+function isKnownCommand(normalized) {
+  const knownCommands = [
+    "MENU",
+    "HELP",
+    "DAFTAR",
+    "LOGIN",
+    "LISTING",
+    "UPDATE",
+    "BATAL",
+    "CANCEL",
+  ];
+
+  return (
+    knownCommands.includes(normalized) ||
+    normalized.startsWith("OTP ") ||
+    normalized.startsWith("UPDATE ")
+  );
+}
 
 export const whatsappService = {
   async handleWebhookPayload(body) {
     const parsed = parseIncomingMessage(body);
-    if (!parsed) return;
 
-    const { phone, text } = parsed;
+    if (!parsed) {
+      console.log("WA webhook non-message:", JSON.stringify(body, null, 2));
+      return;
+    }
+
+    const { phone, text, rawMessage } = parsed;
+
+    if (rawMessage?.type && rawMessage.type !== "text") {
+      console.log("Ignoring non-text WA message:", rawMessage.type);
+      return;
+    }
+
+    if (!text || !text.trim()) {
+      console.log("Ignoring empty WA text");
+      return;
+    }
 
     console.log("📩 Incoming WA:", { phone, text });
     await this.handleIncomingMessage(phone, text);
@@ -52,26 +128,36 @@ export const whatsappService = {
   async handleIncomingMessage(phone, text) {
     const normalized = normalizeText(text);
 
-    const session = await db.whatsAppOnboardingSession.findUnique({
-      where: { phone },
-    });
-
-    if (session && session.expiresAt > new Date()) {
-      await this.handleOnboardingStep(session, phone, text);
-      return;
-    }
-
     if (normalized === "MENU" || normalized === "HELP") {
       await this.sendMessage(phone, menuReply());
       return;
     }
 
+    if (normalized === "BATAL" || normalized === "CANCEL") {
+      await db.whatsAppOnboardingSession.deleteMany({
+        where: { phone },
+      });
+
+      this.clearSession(phone);
+      await this.sendMessage(phone, "Session dibatalkan ✅");
+      return;
+    }
+
     if (normalized === "DAFTAR") {
+      const existingOwner = await db.user.findUnique({
+        where: { phone },
+      });
+
+      if (existingOwner && existingOwner.role === "OWNER") {
+        await this.sendMessage(phone, ownerAlreadyExistsReply());
+        return;
+      }
+
       await db.whatsAppOnboardingSession.upsert({
         where: { phone },
         update: {
           step: 1,
-          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          expiresAt: new Date(Date.now() + ONBOARDING_TTL_MS),
           lastMessageAt: new Date(),
           name: null,
           kostName: null,
@@ -81,7 +167,8 @@ export const whatsappService = {
         create: {
           phone,
           step: 1,
-          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          expiresAt: new Date(Date.now() + ONBOARDING_TTL_MS),
+          lastMessageAt: new Date(),
         },
       });
 
@@ -106,11 +193,14 @@ export const whatsappService = {
         return;
       }
 
-      await this.sendMessage(phone, otpReply(result.data.otpPreview));
+      await this.sendMessage(
+        phone,
+        `OTP login Anda: ${result.data.otpPreview}\nKirim: OTP <kode>`
+      );
       return;
     }
 
-    if (normalized.startsWith("OTP ")) {
+    if (normalized.startsWith("OTP")) {
       const otp = parseOtpCommand(text);
 
       if (!otp) {
@@ -134,6 +224,36 @@ export const whatsappService = {
         phone,
         token: result?.data?.token,
       });
+
+      return;
+    }
+
+    const session = await db.whatsAppOnboardingSession.findUnique({
+      where: { phone },
+    });
+
+    if (session) {
+      if (session.expiresAt <= new Date()) {
+        await db.whatsAppOnboardingSession.deleteMany({
+          where: { phone },
+        });
+
+        await this.sendMessage(
+          phone,
+          "Session pendaftaran sudah expired. Ketik DAFTAR untuk mulai lagi."
+        );
+        return;
+      }
+
+      await this.handleOnboardingStep(session, phone, text);
+      return;
+    }
+
+    if (!isKnownCommand(normalized)) {
+      if (!greetedMap.has(phone)) {
+        greetedMap.set(phone, Date.now());
+        await this.sendMessage(phone, introReply());
+      }
 
       return;
     }
@@ -167,11 +287,21 @@ export const whatsappService = {
   },
 
   async handleOnboardingStep(session, phone, text) {
+    const cleanText = text.trim();
+
     if (session.step === 1) {
+      if (isTooShort(cleanText, 3)) {
+        await this.sendMessage(
+          phone,
+          "Nama terlalu pendek. Masukkan nama lengkap Anda."
+        );
+        return;
+      }
+
       await db.whatsAppOnboardingSession.update({
         where: { phone },
         data: {
-          name: text,
+          name: cleanText,
           step: 2,
           lastMessageAt: new Date(),
         },
@@ -182,10 +312,18 @@ export const whatsappService = {
     }
 
     if (session.step === 2) {
+      if (isTooShort(cleanText, 3)) {
+        await this.sendMessage(
+          phone,
+          "Nama kost terlalu pendek. Masukkan nama kost yang benar."
+        );
+        return;
+      }
+
       await db.whatsAppOnboardingSession.update({
         where: { phone },
         data: {
-          kostName: text,
+          kostName: cleanText,
           step: 3,
           lastMessageAt: new Date(),
         },
@@ -196,10 +334,18 @@ export const whatsappService = {
     }
 
     if (session.step === 3) {
+      if (isTooShort(cleanText, 5)) {
+        await this.sendMessage(
+          phone,
+          "Lokasi terlalu pendek. Masukkan alamat/lokasi kost yang lebih jelas."
+        );
+        return;
+      }
+
       await db.whatsAppOnboardingSession.update({
         where: { phone },
         data: {
-          location: text,
+          location: cleanText,
           step: 4,
           lastMessageAt: new Date(),
         },
@@ -210,34 +356,91 @@ export const whatsappService = {
     }
 
     if (session.step === 4) {
-      const existingOwner = await db.user.findUnique({
-        where: { phone },
-      });
+      const contact = normalizePhone(cleanText);
 
-      if (existingOwner) {
-        await this.sendMessage(phone, ownerAlreadyExistsReply());
+      if (contact.length < 8) {
+        await this.sendMessage(
+          phone,
+          "Nomor kontak tidak valid. Masukkan nomor kontak yang benar."
+        );
         return;
       }
 
       const updated = await db.whatsAppOnboardingSession.update({
         where: { phone },
         data: {
-          contact: text,
+          contact,
+          step: 5,
           lastMessageAt: new Date(),
         },
       });
 
+      await this.sendMessage(
+        phone,
+        confirmOwnerRegistrationReply({
+          name: updated.name,
+          kostName: updated.kostName,
+          location: updated.location,
+          contact: updated.contact,
+        })
+      );
+
+      return;
+    }
+
+    if (session.step === 5) {
+      const answer = normalizeText(cleanText);
+
+      if (answer === "TIDAK" || answer === "NO" || answer === "BATAL") {
+        await db.whatsAppOnboardingSession.deleteMany({
+          where: { phone },
+        });
+
+        await this.sendMessage(phone, registrationCancelledReply());
+        return;
+      }
+
+      if (answer !== "YA" && answer !== "YES") {
+        await this.sendMessage(phone, confirmationFormatReply());
+        return;
+      }
+
+      const latestSession = await db.whatsAppOnboardingSession.findUnique({
+        where: { phone },
+      });
+
+      if (!latestSession) {
+        await this.sendMessage(
+          phone,
+          "Session pendaftaran tidak ditemukan. Ketik DAFTAR untuk mulai lagi."
+        );
+        return;
+      }
+
+      const existingOwner = await db.user.findUnique({
+        where: { phone },
+      });
+
+      if (existingOwner) {
+        await db.whatsAppOnboardingSession.deleteMany({
+          where: { phone },
+        });
+
+        await this.sendMessage(phone, ownerAlreadyExistsReply());
+        return;
+      }
+
       await db.user.create({
         data: {
-          name: updated.name,
+          name: latestSession.name,
           phone,
           role: "OWNER",
           isEmailVerified: true,
           ownerProfile: {
             create: {
-              kostName: updated.kostName,
-              location: updated.location,
-              contact: text,
+              kostName: latestSession.kostName,
+              location: latestSession.location,
+              contact: latestSession.contact,
             },
           },
         },
@@ -248,7 +451,13 @@ export const whatsappService = {
       });
 
       await this.sendMessage(phone, ownerRegisteredReply());
+      return;
     }
+
+    await this.sendMessage(
+      phone,
+      "Session pendaftaran tidak valid. Ketik BATAL lalu DAFTAR untuk mulai ulang."
+    );
   },
 
   async handleUpdateCommand(phone, text) {
@@ -267,14 +476,16 @@ export const whatsappService = {
       return;
     }
 
-    const { field, value } = parseUpdateProfileCommand(text);
+    const parsed = parseUpdateProfileCommand(text);
+    const field = (parsed.field || "").toUpperCase();
+    const value = parsed.value?.trim();
 
     if (!field || !value) {
       await this.sendMessage(phone, updateProfileHelpReply());
       return;
     }
 
-    let data = {};
+    const data = {};
 
     if (field === "NAMAKOST") {
       data.kostName = value;
@@ -302,6 +513,9 @@ export const whatsappService = {
         listings: {
           include: {
             roomTypes: true,
+          },
+          orderBy: {
+            createdAt: "asc",
           },
         },
       },
@@ -406,12 +620,15 @@ export const whatsappService = {
     });
   },
 
+  clearSession(phone) {
+    waSessionMap.delete(phone);
+  },
+
   clearExpiredSession(phone) {
     const session = waSessionMap.get(phone);
     if (!session) return;
 
-    const maxAge = 30 * 60 * 1000;
-    if (Date.now() - session.createdAt > maxAge) {
+    if (Date.now() - session.createdAt > LISTING_SESSION_TTL_MS) {
       waSessionMap.delete(phone);
     }
   },
@@ -443,34 +660,38 @@ export const whatsappService = {
   },
 
   async sendMessage(to, text) {
-    const url = `https://graph.facebook.com/v23.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+    const token = process.env.FONNTE_TOKEN;
 
-    const response = await fetch(url, {
+    if (!token) {
+      throw new Error("FONNTE_TOKEN is not configured");
+    }
+
+    const response = await fetch("https://api.fonnte.com/send", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+        Authorization: token,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: {
-          body: text,
-        },
+        target: to,
+        message: text,
+        typing: true,
       }),
     });
 
     const result = await response.json();
 
-    if (!response.ok) {
-      console.error("WA send failed:", result);
+    if (!response.ok || result?.status === false) {
+      console.error("Fonnte send failed:", result);
       throw new Error(
-        result?.error?.message || "Failed to send WhatsApp message"
+        result?.reason ||
+          result?.detail ||
+          result?.message ||
+          "Failed to send WhatsApp message via Fonnte"
       );
     }
 
-    console.log("WA sent:", result);
+    console.log("Fonnte sent:", result);
     return result;
   },
 };
