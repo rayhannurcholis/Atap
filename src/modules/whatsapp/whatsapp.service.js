@@ -96,7 +96,8 @@ function isKnownCommand(normalized) {
   return (
     knownCommands.includes(normalized) ||
     normalized.startsWith("OTP ") ||
-    normalized.startsWith("UPDATE ")
+    normalized.startsWith("UPDATE ") ||
+    normalized.startsWith("BALAS ")
   );
 }
 
@@ -248,12 +249,48 @@ export const whatsappService = {
       await this.handleOnboardingStep(session, phone, text);
       return;
     }
+    
+    if (normalized.startsWith('BALAS ')) {
+  await this.handleReplyChatCommand(phone, text)
+  return
+}
 
     if (!isKnownCommand(normalized)) {
       if (!greetedMap.has(phone)) {
-        greetedMap.set(phone, Date.now());
-        await this.sendMessage(phone, introReply());
-      }
+  greetedMap.set(phone, Date.now())
+
+  const user = await db.user.findUnique({
+    where: { phone }
+  })
+
+  // belum daftar
+  if (!user || user.role !== 'OWNER') {
+    await this.sendMessage(
+      phone,
+      [
+        'Halo 👋',
+        'Selamat datang di *KostSolo Bot*!',
+        '',
+        '👉 Ketik *DAFTAR* untuk mulai sebagai owner',
+      ].join('\n')
+    )
+    return
+  }
+
+  // sudah owner
+  await this.sendMessage(
+    phone,
+    [
+      'Halo 👋',
+      'Selamat datang kembali di *KostSolo*!',
+      '',
+      '👉 Ketik *LISTING* untuk melihat kost Anda',
+      '👉 Ketik *MENU* untuk perintah lengkap',
+    ].join('\n')
+  )
+
+  return
+}
 
       return;
     }
@@ -267,6 +304,11 @@ export const whatsappService = {
       await this.handleListingCommand(phone);
       return;
     }
+
+    if (normalized === 'STAT') {
+  await this.handleStatCommand(phone)
+  return
+}
 
     if (normalized.startsWith("UPDATE HARGA ")) {
       await this.handleUpdatePrice(phone, text);
@@ -284,6 +326,9 @@ export const whatsappService = {
     }
 
     await this.sendMessage(phone, defaultReply());
+
+    
+
   },
 
   async handleOnboardingStep(session, phone, text) {
@@ -694,4 +739,123 @@ export const whatsappService = {
     console.log("Fonnte sent:", result);
     return result;
   },
+
+  async handleStatCommand(phone) {
+  const owner = await db.user.findUnique({
+    where: { phone },
+    include: {
+      listings: {
+        include: {
+          views: true,
+        },
+      },
+    },
+  })
+
+  if (!owner || owner.role !== 'OWNER') {
+    await this.sendMessage(phone, ownerNotRegisteredReply())
+    return
+  }
+
+  if (!owner.listings || owner.listings.length === 0) {
+    await this.sendMessage(phone, 'Anda belum punya listing.')
+    return
+  }
+
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+
+  let message = ['📊 *Statistik Kost Anda*', '']
+
+  for (const listing of owner.listings) {
+    const totalViews = listing.views.length
+
+    const todayViews = listing.views.filter(
+      (v) => new Date(v.viewedAt) >= startOfToday
+    ).length
+
+    message.push(`🏠 *${listing.name}*`)
+    message.push(`👁️ Total: ${totalViews}`)
+    message.push(`📅 Hari ini: ${todayViews}`)
+    message.push('') // spacing
+  }
+
+  await this.sendMessage(phone, message.join('\n'))
+},
+
+async handleReplyChatCommand(phone, text) {
+  const parts = text.trim().split(/\s+/)
+  const code = parts[1]?.toUpperCase()
+  const message = parts.slice(2).join(' ').trim()
+
+  if (!code || !message) {
+    await this.sendMessage(
+      phone,
+      'Format salah.\nGunakan: BALAS <kode> <pesan>'
+    )
+    return
+  }
+
+  const owner = await db.user.findUnique({
+    where: { phone }
+  })
+
+  if (!owner || owner.role !== 'OWNER') {
+    await this.sendMessage(phone, ownerNotRegisteredReply())
+    return
+  }
+
+  const thread = await db.chatThread.findFirst({
+    where: {
+      ownerId: owner.id,
+      id: {
+        endsWith: code.toLowerCase()
+      }
+    },
+    include: {
+      listing: true,
+      student: true,
+      owner: {
+        include: {
+          ownerProfile: true
+        }
+      }
+    }
+  })
+
+  if (!thread) {
+    await this.sendMessage(
+      phone,
+      'Chat tidak ditemukan. Pastikan kode chat benar.'
+    )
+    return
+  }
+
+  await db.chatMessage.create({
+    data: {
+      threadId: thread.id,
+      senderId: owner.id,
+      message
+    }
+  })
+
+  await db.chatThread.update({
+    where: { id: thread.id },
+    data: {
+      updatedAt: new Date()
+    }
+  })
+
+  await this.sendMessage(
+    phone,
+    [
+      '✅ Balasan terkirim',
+      '',
+      `🏠 ${thread.listing?.name || '-'}`,
+      `👤 ${thread.student?.name || 'Calon penyewa'}`,
+      '',
+      `"${message}"`
+    ].join('\n')
+  )
+}
 };

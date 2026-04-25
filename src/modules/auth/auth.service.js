@@ -5,6 +5,7 @@ import { env } from '../../env.js'
 import { hashPassword, verifyPassword } from '../../utils/crypto.js'
 import { generateOtp, hashOtp, verifyOtp } from '../../utils/otp.js'
 import { generateResetToken, hashToken, verifyToken } from '../../utils/token.js'
+import { whatsappService } from '../whatsapp/whatsapp.service.js'
 
 export function signToken(user, expiresInDays = 7) {
   return jwt.sign(
@@ -367,7 +368,6 @@ export async function requestOwnerOtp({ phone }) {
   const otp = generateOtp()
   const codeHash = await hashOtp(otp)
 
-  // sementara simpan OTP owner login dengan key phone di field email
   await db.emailOtp.create({
     data: {
       email: owner.phone,
@@ -376,9 +376,23 @@ export async function requestOwnerOtp({ phone }) {
     }
   })
 
+  try {
+    await whatsappService.sendMessage(
+      phone,
+      `🔐 *OTP Login KostSolo*\n\nKode OTP Anda: *${otp}*\n\nKode berlaku 10 menit.`
+    )
+  } catch (error) {
+    console.error('Failed to send owner OTP via WhatsApp:', error)
+
+    return {
+      error: 'Failed to send OTP via WhatsApp',
+      status: 500
+    }
+  }
+
   return {
     data: {
-      message: 'OTP generated successfully',
+      message: 'OTP sent successfully via WhatsApp',
       otpPreview: otp
     }
   }

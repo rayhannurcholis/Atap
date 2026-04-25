@@ -1,67 +1,39 @@
 import db from '../../db.js'
+import { whatsappService } from '../whatsapp/whatsapp.service.js'
 
 export const chatService = {
   async startThread({ listingId, studentId, initialMessage }) {
-  const listing = await db.kostListing.findFirst({
-    where: {
-      id: listingId,
-      status: 'ACTIVE'
-    },
-    include: {
-      owner: {
-        include: {
-          ownerProfile: true
-        }
-      }
-    }
-  })
-
-  if (!listing) {
-    return { error: 'Listing not found', status: 404 }
-  }
-
-  if (listing.ownerId === studentId) {
-    return { error: 'You cannot chat with your own listing', status: 400 }
-  }
-
-  let thread = await db.chatThread.findUnique({
-    where: {
-      listingId_studentId_ownerId: {
-        listingId,
-        studentId,
-        ownerId: listing.ownerId
-      }
-    },
-    include: {
-      listing: true,
-      student: true,
-      owner: {
-        include: {
-          ownerProfile: true
-        }
+    const listing = await db.kostListing.findFirst({
+      where: {
+        id: listingId,
+        status: 'ACTIVE'
       },
-      messages: {
-        orderBy: {
-          sentAt: 'asc'
+      include: {
+        owner: {
+          include: {
+            ownerProfile: true
+          }
         }
       }
-    }
-  })
+    })
 
-  if (!thread) {
-    thread = await db.chatThread.create({
-      data: {
-        listingId,
-        studentId,
-        ownerId: listing.ownerId,
-        messages: initialMessage
-          ? {
-              create: {
-                senderId: studentId,
-                message: initialMessage
-              }
-            }
-          : undefined
+    if (!listing) {
+      return { error: 'Listing not found', status: 404 }
+    }
+
+    if (listing.ownerId === studentId) {
+      return { error: 'You cannot chat with your own listing', status: 400 }
+    }
+
+    let createdInitialMessage = false
+
+    let thread = await db.chatThread.findUnique({
+      where: {
+        listingId_studentId_ownerId: {
+          listingId,
+          studentId,
+          ownerId: listing.ownerId
+        }
       },
       include: {
         listing: true,
@@ -78,12 +50,57 @@ export const chatService = {
         }
       }
     })
-  }
 
-  return {
-    data: formatThreadDetail(thread)
-  }
-},
+    if (!thread) {
+      thread = await db.chatThread.create({
+        data: {
+          listingId,
+          studentId,
+          ownerId: listing.ownerId,
+          messages: initialMessage
+            ? {
+                create: {
+                  senderId: studentId,
+                  message: initialMessage
+                }
+              }
+            : undefined
+        },
+        include: {
+          listing: true,
+          student: true,
+          owner: {
+            include: {
+              ownerProfile: true
+            }
+          },
+          messages: {
+            orderBy: {
+              sentAt: 'asc'
+            }
+          }
+        }
+      })
+
+      createdInitialMessage = Boolean(initialMessage)
+    }
+
+    if (createdInitialMessage) {
+      try {
+        await notifyOwnerNewChatMessage({
+          thread,
+          senderId: studentId,
+          message: initialMessage
+        })
+      } catch (error) {
+        console.error('Failed to notify owner via WhatsApp:', error)
+      }
+    }
+
+    return {
+      data: formatThreadDetail(thread)
+    }
+  },
 
   async getMyThreads(user) {
     const where =
@@ -188,6 +205,15 @@ export const chatService = {
       where: {
         id: threadId,
         OR: [{ studentId: senderId }, { ownerId: senderId }]
+      },
+      include: {
+        listing: true,
+        student: true,
+        owner: {
+          include: {
+            ownerProfile: true
+          }
+        }
       }
     })
 
@@ -209,6 +235,16 @@ export const chatService = {
         updatedAt: new Date()
       }
     })
+
+    try {
+      await notifyOwnerNewChatMessage({
+        thread,
+        senderId,
+        message
+      })
+    } catch (error) {
+      console.error('Failed to notify owner via WhatsApp:', error)
+    }
 
     const updatedThread = await db.chatThread.findUnique({
       where: { id: threadId },
@@ -232,6 +268,38 @@ export const chatService = {
       data: formatThreadDetail(updatedThread)
     }
   }
+}
+
+async function notifyOwnerNewChatMessage({ thread, senderId, message }) {
+  if (!thread) return
+
+  // Jangan notif owner kalau pengirimnya owner sendiri
+  if (senderId === thread.ownerId) return
+
+  const ownerPhone = thread.owner?.phone
+
+  if (!ownerPhone) {
+    console.log('Owner phone not found, skip WhatsApp notification')
+    return
+  }
+
+ const replyCode = thread.id.slice(-6).toUpperCase()
+
+const text = [
+  '💬 *Pesan Baru dari Calon Penyewa*',
+  '',
+  `🏠 Kost: *${thread.listing?.name || '-'}*`,
+  `👤 Dari: *${thread.student?.name || 'Calon penyewa'}*`,
+  '',
+  `"${message}"`,
+  '',
+  `Kode chat: *${replyCode}*`,
+  '',
+  'Balas lewat WA dengan format:',
+  `BALAS ${replyCode} pesan Anda`
+].join('\n')
+
+  await whatsappService.sendMessage(ownerPhone, text)
 }
 
 function formatThreadDetail(thread) {
