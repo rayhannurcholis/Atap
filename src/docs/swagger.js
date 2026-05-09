@@ -1927,6 +1927,117 @@ export const swaggerDocument = {
       404: { description: 'Report not found' }
     }
   }
+},
+'/leads/{id}': {
+  post: {
+    tags: ['Leads'],
+    summary: 'Create guest lead',
+    description: 'Guest user submit interest to listing without login',
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: {
+          type: 'string'
+        },
+        example: 'cmoebxvgw0002rmc0hmikwlpg'
+      }
+    ],
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['name', 'phone'],
+            properties: {
+              name: {
+                type: 'string',
+                example: 'Rayhan'
+              },
+              phone: {
+                type: 'string',
+                example: '08123456789'
+              },
+              email: {
+                type: 'string',
+                nullable: true,
+                example: 'rayhan@gmail.com'
+              }
+            }
+          }
+        }
+      }
+    },
+    responses: {
+      200: {
+        description: 'Lead created successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Lead created successfully',
+              data: {
+                id: 'cmlead123',
+                listingId: 'cmoebxvgw0002rmc0hmikwlpg',
+                userId: 'cmuser123',
+                source: 'WEB',
+                createdAt: '2026-05-09T10:00:00.000Z'
+              }
+            }
+          }
+        }
+      },
+      400: {
+        description: 'Validation error'
+      }
+    }
+  }
+},
+
+'/leads/{id}/auth': {
+  post: {
+    tags: ['Leads'],
+    summary: 'Create authenticated lead',
+    description: 'Logged in user submit interest to listing',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'id',
+        in: 'path',
+        required: true,
+        schema: {
+          type: 'string'
+        },
+        example: 'cmoebxvgw0002rmc0hmikwlpg'
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Lead created successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Lead created successfully',
+              data: {
+                id: 'cmlead123',
+                listingId: 'cmoebxvgw0002rmc0hmikwlpg',
+                userId: 'cmuser123',
+                source: 'WEB',
+                createdAt: '2026-05-09T10:00:00.000Z'
+              }
+            }
+          }
+        }
+      },
+      401: {
+        description: 'Unauthorized'
+      },
+      403: {
+        description: 'Forbidden'
+      }
+    }
+  }
 }
   },
 

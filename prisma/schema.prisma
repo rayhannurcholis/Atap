@@ -53,6 +53,7 @@ model User {
   ownerThreads   ChatThread[]      @relation("OwnerChatThreads")
   sentMessages   ChatMessage[]
   listingViews   ListingView[]
+  listingLeads ListingLead[]
 
   submittedListingReports ListingReport[] @relation("ListingReportUser")
   reviewedListingReports  ListingReport[] @relation("ListingReportReviewer")
@@ -118,6 +119,7 @@ model KostListing {
   chatThreads ChatThread[]
   views       ListingView[]
   reports     ListingReport[]
+  leads ListingLead[]
 
   @@index([ownerId])
   @@index([status])
@@ -277,4 +279,19 @@ model ListingReport {
   @@index([listingId])
   @@index([userId])
   @@index([status])
+}
+
+model ListingLead {
+  id        String   @id @default(cuid())
+  listingId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  listing KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, userId])
+  @@index([listingId])
+  @@index([userId])
+  @@index([createdAt])
 }
