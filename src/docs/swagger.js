@@ -1928,6 +1928,71 @@ export const swaggerDocument = {
     }
   }
 },
+'/leads': {
+  get: {
+    tags: ['Leads'],
+    summary: 'Get all leads (admin)',
+    description: 'Admin retrieves listing leads with optional filter by listing.',
+    security: [{ bearerAuth: [] }],
+    parameters: [
+      {
+        name: 'listingId',
+        in: 'query',
+        required: false,
+        schema: { type: 'string' },
+        example: 'cmoebxvgw0002rmc0hmikwlpg'
+      },
+      {
+        name: 'limit',
+        in: 'query',
+        required: false,
+        schema: {
+          type: 'integer',
+          default: 20
+        },
+        example: 20
+      }
+    ],
+    responses: {
+      200: {
+        description: 'Leads retrieved successfully',
+        content: {
+          'application/json': {
+            example: {
+              message: 'Success',
+              data: [
+                {
+                  id: 'cmlead123',
+                  listingId: 'cmoebxvgw0002rmc0hmikwlpg',
+                  userId: 'cmuser123',
+                  createdAt: '2026-05-09T10:00:00.000Z',
+                  user: {
+                    id: 'cmuser123',
+                    name: 'Rayhan',
+                    email: 'rayhan@gmail.com',
+                    phone: '08123456789',
+                    role: 'USER'
+                  },
+                  listing: {
+                    id: 'cmoebxvgw0002rmc0hmikwlpg',
+                    name: 'Kost Solo Indah',
+                    status: 'ACTIVE',
+                    ownerId: 'cmowner123',
+                    contactNumber: '08123456789'
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      401: { description: 'Unauthorized' },
+      403: { description: 'Forbidden' },
+      400: { description: 'Failed to get leads' }
+    }
+  }
+},
+
 '/leads/{id}': {
   post: {
     tags: ['Leads'],

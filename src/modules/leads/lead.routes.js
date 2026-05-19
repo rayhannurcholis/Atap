@@ -9,6 +9,14 @@ import { requireRole } from '../../middleware/role.js'
 
 const leadRoutes = new Hono()
 
+// ADMIN
+leadRoutes.get(
+  '/',
+  authRequired(),
+  requireRole('ADMIN'),
+  leadController.listForAdmin
+)
+
 // PUBLIC
 leadRoutes.post(
   '/:id',

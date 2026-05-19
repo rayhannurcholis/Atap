@@ -35,8 +35,7 @@ async function createLeadRecord({ listingId, userId }) {
   const lead = await db.listingLead.create({
     data: {
       listingId,
-      userId,
-      source: 'WEB'
+      userId
     }
   })
 
@@ -47,6 +46,44 @@ async function createLeadRecord({ listingId, userId }) {
 }
 
 export const leadService = {
+  async listForAdmin({ listingId, limit = 20 }) {
+    const where = {}
+
+    if (listingId) {
+      where.listingId = listingId
+    }
+
+    const leads = await db.listingLead.findMany({
+      where,
+      take: limit,
+      orderBy: {
+        createdAt: 'desc'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true
+          }
+        },
+        listing: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            ownerId: true,
+            contactNumber: true
+          }
+        }
+      }
+    })
+
+    return { data: leads }
+  },
+
   async createAuthLead(listingId, userId) {
     return createLeadRecord({
       listingId,
