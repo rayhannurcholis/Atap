@@ -92,28 +92,49 @@ export const leadService = {
   },
 
   async createGuestLead(listingId, payload) {
-    let user = await db.user.findFirst({
-      where: {
-        phone: payload.phone
-      }
-    })
-
-    if (!user) {
-      user = await db.user.create({
-        data: {
-          role: 'USER',
-          name: payload.name,
-          phone: payload.phone,
-          email: payload.email || null,
-          passwordHash: null,
-          isEmailVerified: false
-        }
-      })
-    }
+    const user = await findOrCreateGuestUser(payload)
 
     return createLeadRecord({
       listingId,
       userId: user.id
     })
   }
+}
+
+async function findOrCreateGuestUser(payload) {
+  const byPhone = await db.user.findFirst({
+    where: { phone: payload.phone }
+  })
+
+  if (byPhone) {
+    return byPhone
+  }
+
+  if (payload.email) {
+    const byEmail = await db.user.findUnique({
+      where: { email: payload.email }
+    })
+
+    if (byEmail) {
+      if (!byEmail.phone) {
+        return db.user.update({
+          where: { id: byEmail.id },
+          data: { phone: payload.phone }
+        })
+      }
+
+      return byEmail
+    }
+  }
+
+  return db.user.create({
+    data: {
+      role: 'USER',
+      name: payload.name,
+      phone: payload.phone,
+      email: payload.email || null,
+      passwordHash: null,
+      isEmailVerified: false
+    }
+  })
 }

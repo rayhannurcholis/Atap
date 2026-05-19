@@ -5,10 +5,9 @@ import { reportController } from './report.controller.js'
 
 const reportRoutes = new Hono()
 
-reportRoutes.use('*', authRequired())
-
 reportRoutes.post(
   '/listings/:id/report',
+  authRequired(),
   requireRole('USER'),
   reportController.create
 )
