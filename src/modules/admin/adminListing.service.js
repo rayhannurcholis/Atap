@@ -37,6 +37,10 @@ export const adminListingService = {
       throw new Error("Listing not found");
     }
 
+    if (listing.status !== "PENDING") {
+      throw new Error("Only pending listings can be approved");
+    }
+
     if (listing.roomTypes.length < 1) {
       throw new Error("Listing must have at least 1 room type");
     }

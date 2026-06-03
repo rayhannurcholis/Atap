@@ -7,10 +7,12 @@ import {
 
 function formatListingWithPhotos(listing) {
   const photos = collectListingPhotos(listing.roomTypes)
+  const thumbnailUrl = photos[0]?.url || null
 
   return {
     ...listing,
     photos,
+    thumbnailUrl,
     roomTypes: listing.roomTypes.map((room) => ({
       ...room,
       photos: mapRoomTypePhotos(room)
@@ -102,10 +104,39 @@ export const listingService = {
       throw new Error("Listing not found");
     }
 
+    if (existing.status !== "ACTIVE") {
+      throw new Error("Only active listings can be deactivated");
+    }
+
     return db.kostListing.update({
       where: { id: listingId },
       data: {
         status: "INACTIVE",
+      },
+    });
+  },
+
+  async requestReactivation(ownerId, listingId) {
+    const existing = await db.kostListing.findFirst({
+      where: {
+        id: listingId,
+        ownerId,
+      },
+    });
+
+    if (!existing) {
+      throw new Error("Listing not found");
+    }
+
+    if (existing.status !== "INACTIVE") {
+      throw new Error("Only inactive listings can be reactivated");
+    }
+
+    return db.kostListing.update({
+      where: { id: listingId },
+      data: {
+        status: "PENDING",
+        rejectionReason: null,
       },
     });
   },

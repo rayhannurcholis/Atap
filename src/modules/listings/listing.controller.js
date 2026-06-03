@@ -99,6 +99,25 @@ export const listingController = {
     }
   },
 
+  async requestReactivation(c) {
+    try {
+      const user = c.get("user");
+      const listingId = c.req.param("id");
+
+      const result = await listingService.requestReactivation(user.id, listingId);
+
+      return c.json({
+        message:
+          "Reactivation request submitted. Waiting for admin approval.",
+        data: result,
+      });
+    } catch (error) {
+      return c.json({
+        message: error.message || "Failed to request listing reactivation",
+      }, 400);
+    }
+  },
+
   async getPublicListings(c) {
     try {
       const result = await listingService.getPublicListings();

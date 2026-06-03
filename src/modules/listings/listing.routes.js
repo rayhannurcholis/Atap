@@ -47,6 +47,13 @@ listingsRoutes.patch(
   listingController.deactivate
 )
 
+listingsRoutes.patch(
+  '/owner/:id/reactivate',
+  authRequired(),
+  requireRole('OWNER'),
+  listingController.requestReactivation
+)
+
 // public
 listingsRoutes.get('/search', searchController.search)
 listingsRoutes.get('/', listingController.getPublicListings)

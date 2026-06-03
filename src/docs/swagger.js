@@ -415,6 +415,7 @@ export const swaggerDocument = {
       patch: {
         tags: ['Owner Listings'],
         summary: 'Deactivate owner listing',
+        description: 'Set listing status from ACTIVE to INACTIVE. Listing will no longer appear in public search.',
         security: [{ bearerAuth: [] }],
         parameters: [
           {
@@ -426,7 +427,63 @@ export const swaggerDocument = {
           }
         ],
         responses: {
-          200: { description: 'Listing deactivated successfully' },
+          200: {
+            description: 'Listing deactivated successfully',
+            content: {
+              'application/json': {
+                example: {
+                  message: 'Listing deactivated successfully',
+                  data: {
+                    id: 'cmabc123listingid',
+                    status: 'INACTIVE'
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Only active listings can be deactivated' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
+          404: { description: 'Listing not found' }
+        }
+      }
+    },
+
+    '/listings/owner/{id}/reactivate': {
+      patch: {
+        tags: ['Owner Listings'],
+        summary: 'Request listing reactivation',
+        description:
+          'Owner requests to reactivate an INACTIVE listing. Status becomes PENDING and admin must approve via PATCH /admin/listings/{id}/approve.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            example: 'cmabc123listingid'
+          }
+        ],
+        responses: {
+          200: {
+            description: 'Reactivation request submitted',
+            content: {
+              'application/json': {
+                example: {
+                  message:
+                    'Reactivation request submitted. Waiting for admin approval.',
+                  data: {
+                    id: 'cmabc123listingid',
+                    status: 'PENDING'
+                  }
+                }
+              }
+            }
+          },
+          400: { description: 'Only inactive listings can be reactivated' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
           404: { description: 'Listing not found' }
         }
       }
@@ -739,7 +796,8 @@ export const swaggerDocument = {
       get: {
         tags: ['Admin Listings'],
         summary: 'Get pending listings',
-        description: 'Retrieve all kost listings with status PENDING for admin review',
+        description:
+          'Retrieve all kost listings with status PENDING for admin review, including new listings and reactivation requests from owners.',
         security: [{ bearerAuth: [] }],
         responses: {
           200: {
@@ -775,7 +833,8 @@ export const swaggerDocument = {
       patch: {
         tags: ['Admin Listings'],
         summary: 'Approve listing',
-        description: 'Approve a pending listing. Listing must have at least 1 room type and 1 photo.',
+        description:
+          'Approve a PENDING listing (new or reactivation request). Sets status to ACTIVE. Listing must have at least 1 room type and 1 photo.',
         security: [{ bearerAuth: [] }],
         parameters: [
           {
@@ -802,8 +861,11 @@ export const swaggerDocument = {
             }
           },
           400: {
-            description: 'Listing cannot be approved (missing room type or photo)'
+            description:
+              'Listing cannot be approved (not PENDING, or missing room type/photo)'
           },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Forbidden' },
           404: { description: 'Listing not found' }
         }
       }
