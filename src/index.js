@@ -21,6 +21,7 @@ import ownerRoutes from './modules/owner/owner.routes.js'
 import adminAnalyticsRoutes from './modules/analytics/admin.routes.js'
 import fonnteWebhook from './modules/whatsapp/fonnte.webhook.js'
 import leadRoutes from './modules/leads/lead.routes.js'
+import filesRoutes from './modules/files/files.routes.js'
 
 
 
@@ -42,6 +43,8 @@ app.get('/swagger.json', (c) => {
 
 app.get('/docs', swaggerUI({ url: '/swagger.json' }))
 app.route('/fonnte/webhook', fonnteWebhook)
+app.route('/files', filesRoutes)
+app.route('/api/files', filesRoutes)
 
 app.route('/auth', authRoutes)
 app.route('/listings', listingsRoutes)

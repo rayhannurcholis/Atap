@@ -1,3 +1,5 @@
+import { toProxiedFileUrl } from './r2.js'
+
 /** Prisma include: semua foto per room type, urut sortOrder */
 export const roomPhotosInclude = {
   orderBy: { sortOrder: 'asc' }
@@ -22,7 +24,7 @@ export function collectListingPhotos(roomTypes = []) {
         id: photo.id,
         roomTypeId: room.id,
         roomTypeName: room.name,
-        url: photo.url,
+        url: toProxiedFileUrl(photo.url, photo.key),
         mimeType: photo.mimeType ?? null,
         sizeBytes: photo.sizeBytes ?? null,
         sortOrder: photo.sortOrder ?? 0
@@ -39,7 +41,7 @@ export function collectListingPhotos(roomTypes = []) {
 export function mapRoomTypePhotos(room) {
   return (room.photos || []).map((photo) => ({
     id: photo.id,
-    url: photo.url,
+    url: toProxiedFileUrl(photo.url, photo.key),
     mimeType: photo.mimeType ?? null,
     sizeBytes: photo.sizeBytes ?? null,
     sortOrder: photo.sortOrder ?? 0
