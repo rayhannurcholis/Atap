@@ -1,4 +1,8 @@
 import db from '../../db.js'
+import {
+  collectListingPhotos,
+  roomTypesWithPhotosInclude
+} from '../../utils/listingPhotos.js'
 
 function toRadians(value) {
   return (value * Math.PI) / 180
@@ -55,17 +59,7 @@ export const searchService = {
         }),
         ...(genderType && { genderType })
       },
-      include: {
-        roomTypes: {
-          include: {
-            photos: {
-              orderBy: {
-                sortOrder: 'asc'
-              }
-            }
-          }
-        }
-      },
+      include: roomTypesWithPhotosInclude,
       orderBy:
         sort === 'relevance'
           ? [{ isPremium: 'desc' }, { createdAt: 'desc' }]
@@ -78,10 +72,8 @@ export const searchService = {
           ? Math.min(...listing.roomTypes.map((room) => Number(room.price)))
           : null
 
-      const firstPhoto =
-        listing.roomTypes
-          .flatMap((room) => room.photos)
-          .sort((a, b) => a.sortOrder - b.sortOrder)[0] || null
+      const photos = collectListingPhotos(listing.roomTypes)
+      const firstPhoto = photos[0] || null
 
       const allFacilities = listing.roomTypes.flatMap((room) =>
         Array.isArray(room.facilities) ? room.facilities : []
@@ -98,6 +90,7 @@ export const searchService = {
         createdAt: listing.createdAt,
         cheapestPrice,
         thumbnailUrl: firstPhoto?.url || null,
+        photos,
         facilities: [...new Set(allFacilities)]
       }
     })

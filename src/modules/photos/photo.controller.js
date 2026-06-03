@@ -1,5 +1,35 @@
 import { photoService } from "./photo.service.js";
 
+function isUploadFile(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    typeof value.arrayBuffer === "function"
+  );
+}
+
+/** Ambil semua file dari field photos / photos[] / photos[0] dll. */
+function extractUploadFiles(body) {
+  const files = [];
+
+  for (const [key, value] of Object.entries(body)) {
+    const isPhotoField =
+      key === "photos" || key === "photos[]" || /^photos(\[\d*\])?$/.test(key);
+
+    if (!isPhotoField) continue;
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (isUploadFile(item)) files.push(item);
+      }
+    } else if (isUploadFile(value)) {
+      files.push(value);
+    }
+  }
+
+  return files;
+}
+
 export const photoController = {
   async upload(c) {
     try {
@@ -17,13 +47,7 @@ export const photoController = {
       }
 
       const body = await c.req.parseBody();
-      const rawFiles = body.photos;
-
-      const files = Array.isArray(rawFiles)
-        ? rawFiles
-        : rawFiles
-        ? [rawFiles]
-        : [];
+      const files = extractUploadFiles(body);
 
       const result = await photoService.upload(ownerId, roomTypeId, files);
 

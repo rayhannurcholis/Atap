@@ -7,6 +7,7 @@
     "dev": "bun --watch src/index.js",
     "prisma:migrate": "bunx prisma migrate dev",
     "prisma:generate": "bunx prisma generate",
+    "postinstall": "bunx prisma generate",
     "prisma:studio": "bunx prisma studio"
   },
   "private": true,

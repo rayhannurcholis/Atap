@@ -32,4 +32,4 @@ leadRoutes.post(
   leadController.createAuthLead
 )
 
-export default leadRoutes
+export default leadRoutes 

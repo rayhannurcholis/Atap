@@ -1,4 +1,8 @@
 import db from '../../db.js'
+import {
+  collectListingPhotos,
+  roomTypesWithPhotosInclude
+} from '../../utils/listingPhotos.js'
 
 export const favoriteService = {
   async add(userId, listingId) {
@@ -41,13 +45,7 @@ export const favoriteService = {
       where: { userId },
       include: {
         listing: {
-          include: {
-            roomTypes: {
-              include: {
-                photos: true
-              }
-            }
-          }
+          include: roomTypesWithPhotosInclude
         }
       },
       orderBy: {
@@ -63,10 +61,8 @@ export const favoriteService = {
           ? Math.min(...listing.roomTypes.map((r) => r.price))
           : null
 
-      const firstPhoto =
-        listing.roomTypes
-          .flatMap((r) => r.photos)
-          .sort((a, b) => a.sortOrder - b.sortOrder)[0]
+      const photos = collectListingPhotos(listing.roomTypes)
+      const firstPhoto = photos[0] || null
 
       return {
         id: listing.id,
@@ -77,7 +73,8 @@ export const favoriteService = {
         latitude: Number(listing.latitude),
         longitude: Number(listing.longitude),
         cheapestPrice,
-        thumbnailUrl: firstPhoto?.url || null
+        thumbnailUrl: firstPhoto?.url || null,
+        photos
       }
     })
   }

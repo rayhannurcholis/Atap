@@ -1,4 +1,9 @@
 import db from '../../db.js'
+import {
+  collectListingPhotos,
+  mapRoomTypePhotos,
+  roomTypesWithPhotosInclude
+} from '../../utils/listingPhotos.js'
 
 export const listingDetailService = {
   async getById(id) {
@@ -13,18 +18,7 @@ export const listingDetailService = {
             ownerProfile: true
           }
         },
-        roomTypes: {
-          include: {
-            photos: {
-              orderBy: {
-                sortOrder: 'asc'
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'asc'
-          }
-        }
+        ...roomTypesWithPhotosInclude
       }
     })
 
@@ -35,19 +29,7 @@ export const listingDetailService = {
       }
     }
 
-    const allPhotos = listing.roomTypes
-      .flatMap((room) =>
-        room.photos.map((photo) => ({
-          id: photo.id,
-          roomTypeId: room.id,
-          roomTypeName: room.name,
-          url: photo.url,
-          mimeType: photo.mimeType,
-          sizeBytes: photo.sizeBytes,
-          sortOrder: photo.sortOrder
-        }))
-      )
-      .sort((a, b) => a.sortOrder - b.sortOrder)
+    const allPhotos = collectListingPhotos(listing.roomTypes)
 
     const allFacilities = [
       ...new Set(
@@ -96,13 +78,7 @@ export const listingDetailService = {
           availableCount: room.availableCount,
           createdAt: room.createdAt,
           updatedAt: room.updatedAt,
-          photos: room.photos.map((photo) => ({
-            id: photo.id,
-            url: photo.url,
-            mimeType: photo.mimeType,
-            sizeBytes: photo.sizeBytes,
-            sortOrder: photo.sortOrder
-          }))
+          photos: mapRoomTypePhotos(room)
         }))
       }
     }

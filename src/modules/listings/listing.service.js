@@ -1,4 +1,22 @@
 import db from '../../db.js'
+import {
+  collectListingPhotos,
+  mapRoomTypePhotos,
+  roomTypesWithPhotosInclude
+} from '../../utils/listingPhotos.js'
+
+function formatListingWithPhotos(listing) {
+  const photos = collectListingPhotos(listing.roomTypes)
+
+  return {
+    ...listing,
+    photos,
+    roomTypes: listing.roomTypes.map((room) => ({
+      ...room,
+      photos: mapRoomTypePhotos(room)
+    }))
+  }
+}
 
 export const listingService = {
   async create(ownerId, payload) {
@@ -21,19 +39,15 @@ export const listingService = {
 },
 
   async getOwnerListings(ownerId) {
-    return db.kostListing.findMany({
+    const listings = await db.kostListing.findMany({
       where: { ownerId },
-      include: {  
-        roomTypes: {
-          include: {
-            photos: true,
-          },
-        },
-      },
+      include: roomTypesWithPhotosInclude,
       orderBy: {
         createdAt: "desc",
       },
     });
+
+    return listings.map(formatListingWithPhotos);
   },
 
   async getOwnerListingById(ownerId, listingId) {
@@ -42,20 +56,14 @@ export const listingService = {
         id: listingId,
         ownerId,
       },
-      include: {
-        roomTypes: {
-          include: {
-            photos: true,
-          },
-        },
-      },
+      include: roomTypesWithPhotosInclude,
     });
 
     if (!listing) {
       throw new Error("Listing not found");
     }
 
-    return listing;
+    return formatListingWithPhotos(listing);
   },
 
   async update(ownerId, listingId, payload) {
@@ -103,22 +111,18 @@ export const listingService = {
   },
 
   async getPublicListings() {
-    return db.kostListing.findMany({
+    const listings = await db.kostListing.findMany({
       where: {
         status: "ACTIVE",
       },
-      include: {
-        roomTypes: {
-          include: {
-            photos: true,
-          },
-        },
-      },
+      include: roomTypesWithPhotosInclude,
       orderBy: [
         { isPremium: "desc" },
         { createdAt: "desc" },
       ],
     });
+
+    return listings.map(formatListingWithPhotos);
   },
 
   async getPublicListingById(id) {
@@ -127,19 +131,13 @@ export const listingService = {
         id,
         status: "ACTIVE",
       },
-      include: {
-        roomTypes: {
-          include: {
-            photos: true,
-          },
-        },
-      },
+      include: roomTypesWithPhotosInclude,
     });
 
     if (!listing) {
       throw new Error("Listing not found");
     }
 
-    return listing;
+    return formatListingWithPhotos(listing);
   },
 };
