@@ -17,14 +17,23 @@ leadRoutes.get(
   leadController.listForAdmin
 )
 
-// PUBLIC
+// PUBLIC — info rekening transfer (sebelum/sesudah klik minat)
+leadRoutes.get('/payment-info', leadController.getPaymentInfo)
+
+// PUBLIC — upload bukti transfer (opsional, setelah lead dibuat)
+leadRoutes.post(
+  '/records/:leadId/payment-proof',
+  leadController.uploadPaymentProof
+)
+
+// PUBLIC — buat lead guest
 leadRoutes.post(
   '/:id',
   zValidator('json', createGuestLeadSchema),
   leadController.createGuestLead
 )
 
-// AUTH
+// AUTH — buat lead user login
 leadRoutes.post(
   '/:id/auth',
   authRequired(),
@@ -32,4 +41,4 @@ leadRoutes.post(
   leadController.createAuthLead
 )
 
-export default leadRoutes 
+export default leadRoutes

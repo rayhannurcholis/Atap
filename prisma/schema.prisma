@@ -282,10 +282,13 @@ model ListingReport {
 }
 
 model ListingLead {
-  id        String   @id @default(cuid())
-  listingId String
-  userId    String
-  createdAt DateTime @default(now())
+  id                     String    @id @default(cuid())
+  listingId              String
+  userId                 String
+  paymentProofUrl        String?
+  paymentProofKey        String?
+  paymentProofUploadedAt DateTime?
+  createdAt              DateTime  @default(now())
 
   listing KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
   user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
