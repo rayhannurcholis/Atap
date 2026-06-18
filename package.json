@@ -4,7 +4,13 @@
   "type": "module",
   "scripts": {
     "start": "bun src/index.js",
+    "start:campus": "bun --env-file=.env.campus src/index.js",
+    "start:cloud": "bun --env-file=.env.cloud src/index.js",
     "dev": "bun --watch src/index.js",
+    "dev:campus": "bun --env-file=.env.campus --watch src/index.js",
+    "dev:cloud": "bun --env-file=.env.cloud --watch src/index.js",
+    "prisma:migrate:campus": "bun --env-file=.env.campus prisma migrate deploy",
+    "prisma:migrate:cloud": "bun --env-file=.env.cloud prisma migrate deploy",
     "prisma:migrate": "bunx prisma migrate dev",
     "prisma:generate": "bunx prisma generate",
     "postinstall": "bunx prisma generate",

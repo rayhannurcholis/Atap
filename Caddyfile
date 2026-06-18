@@ -1,0 +1,11 @@
+# Ganti dengan domain kamu yang sudah diarahkan (A record) ke IP Droplet.
+# Caddy otomatis mengurus sertifikat HTTPS (Let's Encrypt).
+api.kostsolo.com {
+	reverse_proxy api:8080
+}
+
+# --- Alternatif tanpa domain (akses lewat IP saja, HTTP) ---
+# Hapus blok di atas, lalu pakai ini:
+# :80 {
+# 	reverse_proxy api:8080
+# }

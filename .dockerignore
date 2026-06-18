@@ -1,0 +1,22 @@
+node_modules
+.git
+.gitignore
+
+# env files (di-supply lewat env_file / runtime, jangan ikut ke image)
+.env
+.env.*
+!.env.example
+
+# docs & misc
+*.md
+.idea
+.DS_Store
+.cache
+*.tsbuildinfo
+
+# build output
+out
+dist
+coverage
+logs
+*.log

@@ -48,10 +48,6 @@ async function createLeadRecord({ listingId, userId }) {
     throw new Error('Listing not found')
   }
 
-  if (listing.ownerId === userId) {
-    throw new Error('Cannot add own listing as lead')
-  }
-
   const existing = await db.listingLead.findUnique({
     where: {
       listingId_userId: {

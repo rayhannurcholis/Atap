@@ -61,16 +61,9 @@ app.route('/', reportRoutes)
 app.route('/admin', adminAnalyticsRoutes)
 app.route('/leads', leadRoutes)
 
+const port = Number(process.env.PORT) || 8080
 
-export default app
-
-import { serve } from 'bun'
-
-const port = process.env.PORT || 8080
-
-serve({
+export default {
+  port,
   fetch: app.fetch,
-  port
-})
-
-console.log(`Server running on port ${port}`)
+}

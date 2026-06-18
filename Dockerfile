@@ -2,13 +2,21 @@ FROM oven/bun:1
 
 WORKDIR /app
 
+# Copy manifest + schema dulu supaya layer install ter-cache
+# (postinstall menjalankan `prisma generate`, jadi schema harus ada lebih dulu)
+COPY package.json bun.lock prisma.config.ts ./
+COPY prisma ./prisma
+
+RUN bun install --frozen-lockfile
+
+# Baru copy sisa source code
 COPY . .
 
-RUN bun install
-
+# Pastikan prisma client ter-generate untuk source terbaru
 RUN bunx prisma generate
-RUN bunx prisma migrate deploy
 
 EXPOSE 8080
 
-CMD ["bun", "run", "src/index.js"]
+# migrate deploy dijalankan saat startup (butuh DATABASE_URL), bukan saat build
+# pakai `sh` eksplisit agar tidak bergantung pada bit executable file
+ENTRYPOINT ["sh", "docker-entrypoint.sh"]
