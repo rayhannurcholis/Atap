@@ -4,6 +4,7 @@ import {
   roomTypesWithPhotosInclude
 } from '../../utils/listingPhotos.js'
 import { fuzzLocation } from '../../utils/geoMask.js'
+import { applyPriceMarkup } from '../../utils/pricing.js'
 
 export const favoriteService = {
   async add(userId, listingId) {
@@ -59,7 +60,9 @@ export const favoriteService = {
 
       const cheapestPrice =
         listing.roomTypes.length > 0
-          ? Math.min(...listing.roomTypes.map((r) => r.price))
+          ? applyPriceMarkup(
+              Math.min(...listing.roomTypes.map((r) => Number(r.price)))
+            )
           : null
 
       const photos = collectListingPhotos(listing.roomTypes)

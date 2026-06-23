@@ -4,6 +4,7 @@ import {
   roomTypesWithPhotosInclude
 } from '../../utils/listingPhotos.js'
 import { fuzzLocation } from '../../utils/geoMask.js'
+import { applyPriceMarkup } from '../../utils/pricing.js'
 
 function toRadians(value) {
   return (value * Math.PI) / 180
@@ -182,7 +183,11 @@ export const searchService = {
         ...item,
         latitude: fuzz?.centerLat ?? null,
         longitude: fuzz?.centerLng ?? null,
-        locationRadiusM: fuzz?.radiusM ?? null
+        locationRadiusM: fuzz?.radiusM ?? null,
+        cheapestPrice:
+          item.cheapestPrice !== null
+            ? applyPriceMarkup(item.cheapestPrice)
+            : null
       }
     })
   }

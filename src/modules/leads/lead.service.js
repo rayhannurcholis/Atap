@@ -5,6 +5,7 @@ import {
   collectListingPhotos,
   roomTypesWithPhotosInclude
 } from '../../utils/listingPhotos.js'
+import { applyPriceMarkup } from '../../utils/pricing.js'
 
 const OTP_TTL_MS = 10 * 60 * 1000
 
@@ -61,7 +62,7 @@ function toDiminatiCard(lead) {
     address: listing.address ?? null,
     genderType: listing.genderType ?? null,
     thumbnailUrl: photos[0]?.url ?? null,
-    cheapestPrice: prices.length ? Math.min(...prices) : null
+    cheapestPrice: prices.length ? applyPriceMarkup(Math.min(...prices)) : null
   }
 }
 

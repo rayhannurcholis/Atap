@@ -5,6 +5,7 @@ import {
   roomTypesWithPhotosInclude
 } from '../../utils/listingPhotos.js'
 import { fuzzLocation } from '../../utils/geoMask.js'
+import { applyPriceMarkup } from '../../utils/pricing.js'
 
 export const listingDetailService = {
   async getById(id) {
@@ -42,7 +43,9 @@ export const listingDetailService = {
 
     const cheapestPrice =
       listing.roomTypes.length > 0
-        ? Math.min(...listing.roomTypes.map((room) => Number(room.price)))
+        ? applyPriceMarkup(
+            Math.min(...listing.roomTypes.map((room) => Number(room.price)))
+          )
         : null
 
     // Lokasi publik di-masking: kirim center lingkaran + radius, bukan titik asli.
@@ -77,7 +80,7 @@ export const listingDetailService = {
         roomTypes: listing.roomTypes.map((room) => ({
           id: room.id,
           name: room.name,
-          price: room.price,
+          price: applyPriceMarkup(room.price),
           size: room.size,
           facilities: room.facilities,
           availableCount: room.availableCount,
