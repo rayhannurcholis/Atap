@@ -3,6 +3,7 @@ import {
   collectListingPhotos,
   roomTypesWithPhotosInclude
 } from '../../utils/listingPhotos.js'
+import { fuzzLocation } from '../../utils/geoMask.js'
 
 function toRadians(value) {
   return (value * Math.PI) / 180
@@ -173,6 +174,16 @@ export const searchService = {
       )
     }
 
-    return results
+    // Jarak sudah dihitung dengan koordinat asli di atas. Sebelum dikirim ke
+    // client, koordinat di-masking (center lingkaran + radius), titik asli tidak bocor.
+    return results.map((item) => {
+      const fuzz = fuzzLocation(item.latitude, item.longitude, item.id)
+      return {
+        ...item,
+        latitude: fuzz?.centerLat ?? null,
+        longitude: fuzz?.centerLng ?? null,
+        locationRadiusM: fuzz?.radiusM ?? null
+      }
+    })
   }
 }

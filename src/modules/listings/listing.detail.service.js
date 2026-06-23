@@ -4,6 +4,7 @@ import {
   mapRoomTypePhotos,
   roomTypesWithPhotosInclude
 } from '../../utils/listingPhotos.js'
+import { fuzzLocation } from '../../utils/geoMask.js'
 
 export const listingDetailService = {
   async getById(id) {
@@ -44,13 +45,17 @@ export const listingDetailService = {
         ? Math.min(...listing.roomTypes.map((room) => Number(room.price)))
         : null
 
+    // Lokasi publik di-masking: kirim center lingkaran + radius, bukan titik asli.
+    const fuzz = fuzzLocation(listing.latitude, listing.longitude, listing.id)
+
     return {
       data: {
         id: listing.id,
         name: listing.name,
         address: listing.address,
-        latitude: Number(listing.latitude),
-        longitude: Number(listing.longitude),
+        latitude: fuzz?.centerLat ?? null,
+        longitude: fuzz?.centerLng ?? null,
+        locationRadiusM: fuzz?.radiusM ?? null,
         genderType: listing.genderType,
         description: listing.description,
         rules: listing.rules,

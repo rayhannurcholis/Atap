@@ -2057,27 +2057,69 @@ export const swaggerDocument = {
   }
 },
 
-'/leads/payment-info': {
+'/leads/me': {
   get: {
     tags: ['Leads'],
-    summary: 'Get lead payment info',
-    description:
-      'Public bank transfer details shown after user clicks minat. Payment proof upload is optional.',
+    summary: 'List my interested kos',
+    description: 'Daftar kos yang diminati oleh user yang login.',
+    security: [{ bearerAuth: [] }],
     responses: {
       200: {
-        description: 'Payment info retrieved successfully',
+        description: 'Success',
         content: {
           'application/json': {
             example: {
               message: 'Success',
-              data: {
-                bankName: 'BCA',
-                accountNumber: '1234567890',
-                accountHolder: 'PT Kost Solo',
-                amount: '50000',
-                notes: 'Transfer biaya admin pemesanan. Bukti pembayaran opsional.',
-                proofOptional: true
-              }
+              data: [
+                {
+                  leadId: 'cmlead123',
+                  leadAt: '2026-05-09T10:00:00.000Z',
+                  id: 'cmoebxvgw0002rmc0hmikwlpg',
+                  name: 'Kos Putri Melati',
+                  status: 'ACTIVE',
+                  address: 'Jebres, Surakarta',
+                  genderType: 'FEMALE',
+                  thumbnailUrl: 'http://localhost:8080/files/leads/...',
+                  cheapestPrice: 800000
+                }
+              ]
+            }
+          }
+        }
+      },
+      401: { description: 'Unauthorized' }
+    }
+  }
+},
+
+'/leads/lookup/request-otp': {
+  post: {
+    tags: ['Leads'],
+    summary: 'Request OTP to view interested kos (guest)',
+    description:
+      'Guest mengirim nomor WhatsApp untuk menerima OTP. OTP dikirim via WhatsApp; otpPreview disertakan untuk dev/testing.',
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['phone'],
+            properties: {
+              phone: { type: 'string', example: '08123456789' }
+            }
+          }
+        }
+      }
+    },
+    responses: {
+      200: {
+        description: 'OTP requested',
+        content: {
+          'application/json': {
+            example: {
+              message: 'OTP telah dikirim via WhatsApp.',
+              otpPreview: '123456'
             }
           }
         }
@@ -2086,66 +2128,31 @@ export const swaggerDocument = {
   }
 },
 
-'/leads/records/{leadId}/payment-proof': {
+'/leads/lookup': {
   post: {
     tags: ['Leads'],
-    summary: 'Upload lead payment proof (optional)',
+    summary: 'Verify OTP and get interested kos (guest)',
     description:
-      'Upload bukti transfer setelah lead dibuat. Opsional — lead tetap valid tanpa bukti. Guest wajib kirim field phone yang sama saat minat. User login bisa kirim Bearer token.',
-    parameters: [
-      {
-        name: 'leadId',
-        in: 'path',
-        required: true,
-        schema: { type: 'string' },
-        example: 'cmlead123'
-      }
-    ],
+      'Guest verifikasi OTP, lalu menerima daftar kos yang diminati oleh nomor tersebut.',
     requestBody: {
       required: true,
       content: {
-        'multipart/form-data': {
+        'application/json': {
           schema: {
             type: 'object',
-            required: ['proof'],
+            required: ['phone', 'otp'],
             properties: {
-              proof: {
-                type: 'string',
-                format: 'binary',
-                description: 'Foto bukti transfer (JPG/PNG/WEBP, max 5MB)'
-              },
-              phone: {
-                type: 'string',
-                description: 'Wajib untuk guest (nomor saat submit minat)',
-                example: '08123456789'
-              }
+              phone: { type: 'string', example: '08123456789' },
+              otp: { type: 'string', example: '123456' }
             }
           }
         }
       }
     },
     responses: {
-      200: {
-        description: 'Payment proof uploaded successfully',
-        content: {
-          'application/json': {
-            example: {
-              message: 'Payment proof uploaded successfully',
-              data: {
-                id: 'cmlead123',
-                listingId: 'cmoebxvgw0002rmc0hmikwlpg',
-                userId: 'cmuser123',
-                paymentProofUrl: 'http://localhost:8080/files/leads/cmlead123/proof.png',
-                paymentProofUploadedAt: '2026-05-09T10:30:00.000Z',
-                createdAt: '2026-05-09T10:00:00.000Z'
-              }
-            }
-          }
-        }
-      },
-      400: { description: 'Invalid file or missing phone (guest)' },
-      403: { description: 'Forbidden' },
-      404: { description: 'Lead not found' }
+      200: { description: 'Success — daftar kos diminati' },
+      400: { description: 'Invalid OTP / OTP expired' },
+      404: { description: 'OTP not found' }
     }
   }
 },
@@ -2155,7 +2162,7 @@ export const swaggerDocument = {
     tags: ['Leads'],
     summary: 'Create guest lead',
     description:
-      'Guest user submit interest to listing without login. Response includes paymentInfo for transfer instructions. Payment proof is optional and can be uploaded later.',
+      'Guest user submit interest to listing without login.',
     parameters: [
       {
         name: 'id',
@@ -2204,16 +2211,7 @@ export const swaggerDocument = {
                 id: 'cmlead123',
                 listingId: 'cmoebxvgw0002rmc0hmikwlpg',
                 userId: 'cmuser123',
-                paymentProofUrl: null,
                 createdAt: '2026-05-09T10:00:00.000Z'
-              },
-              paymentInfo: {
-                bankName: 'BCA',
-                accountNumber: '1234567890',
-                accountHolder: 'PT Kost Solo',
-                amount: '50000',
-                notes: 'Transfer biaya admin pemesanan. Bukti pembayaran opsional.',
-                proofOptional: true
               }
             }
           }
@@ -2231,7 +2229,7 @@ export const swaggerDocument = {
     tags: ['Leads'],
     summary: 'Create authenticated lead',
     description:
-      'Logged in user submit interest to listing. Response includes paymentInfo. Payment proof upload is optional.',
+      'Logged in user submit interest to listing.',
     security: [{ bearerAuth: [] }],
     parameters: [
       {
@@ -2255,16 +2253,7 @@ export const swaggerDocument = {
                 id: 'cmlead123',
                 listingId: 'cmoebxvgw0002rmc0hmikwlpg',
                 userId: 'cmuser123',
-                paymentProofUrl: null,
                 createdAt: '2026-05-09T10:00:00.000Z'
-              },
-              paymentInfo: {
-                bankName: 'BCA',
-                accountNumber: '1234567890',
-                accountHolder: 'PT Kost Solo',
-                amount: '50000',
-                notes: 'Transfer biaya admin pemesanan. Bukti pembayaran opsional.',
-                proofOptional: true
               }
             }
           }

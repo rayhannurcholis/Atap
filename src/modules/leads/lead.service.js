@@ -1,38 +1,67 @@
 import db from '../../db.js'
-import { env } from '../../env.js'
+import { generateOtp, hashOtp, verifyOtp } from '../../utils/otp.js'
+import { whatsappService } from '../whatsapp/whatsapp.service.js'
 import {
-  deleteFromR2,
-  toProxiedFileUrl,
-  uploadBufferToR2
-} from '../../utils/r2.js'
+  collectListingPhotos,
+  roomTypesWithPhotosInclude
+} from '../../utils/listingPhotos.js'
 
-const ALLOWED_PROOF_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_PROOF_SIZE = 5 * 1024 * 1024
+const OTP_TTL_MS = 10 * 60 * 1000
 
-function sanitizeFileName(name = 'proof') {
-  return name.replace(/[^a-zA-Z0-9._-]/g, '_')
+/** Bentuk kanonik nomor: hanya digit, awalan 0 -> 62. */
+function canonicalPhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.startsWith('0')) return `62${digits.slice(1)}`
+  if (digits.startsWith('62')) return digits
+  if (digits.startsWith('8')) return `62${digits}`
+  return digits
 }
 
-export function getLeadPaymentInfo() {
-  return {
-    bankName: env.LEAD_PAYMENT_BANK_NAME,
-    accountNumber: env.LEAD_PAYMENT_ACCOUNT_NUMBER,
-    accountHolder: env.LEAD_PAYMENT_ACCOUNT_HOLDER,
-    amount: env.LEAD_PAYMENT_AMOUNT,
-    notes: env.LEAD_PAYMENT_NOTES,
-    proofOptional: true
+/** Semua kemungkinan format nomor agar cocok dengan data tersimpan. */
+function phoneVariants(phone) {
+  const variants = new Set()
+  const trimmed = String(phone || '').trim()
+  if (trimmed) variants.add(trimmed)
+
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits) {
+    variants.add(digits)
+    const canon = canonicalPhone(trimmed)
+    if (canon) {
+      variants.add(canon)
+      variants.add(`+${canon}`)
+      if (canon.startsWith('62')) variants.add(`0${canon.slice(2)}`)
+    }
   }
+
+  return [...variants].filter(Boolean)
 }
 
 export function formatLead(lead) {
-  if (!lead) return lead
+  return lead
+}
+
+/** Ubah lead+listing menjadi kartu untuk halaman "Kos Diminati". */
+function toDiminatiCard(lead) {
+  const listing = lead.listing
+  if (!listing) return null
+
+  const photos = collectListingPhotos(listing.roomTypes)
+  const prices = (listing.roomTypes || [])
+    .map((room) => Number(room.price))
+    .filter((n) => Number.isFinite(n) && n > 0)
 
   return {
-    ...lead,
-    paymentProofUrl:
-      lead.paymentProofKey || lead.paymentProofUrl
-        ? toProxiedFileUrl(lead.paymentProofUrl, lead.paymentProofKey)
-        : null
+    leadId: lead.id,
+    leadAt: lead.createdAt,
+    id: listing.id,
+    name: listing.name,
+    status: listing.status,
+    address: listing.address ?? null,
+    genderType: listing.genderType ?? null,
+    thumbnailUrl: photos[0]?.url ?? null,
+    cheapestPrice: prices.length ? Math.min(...prices) : null
   }
 }
 
@@ -60,8 +89,7 @@ async function createLeadRecord({ listingId, userId }) {
   if (existing) {
     return {
       alreadyExists: true,
-      lead: formatLead(existing),
-      paymentInfo: getLeadPaymentInfo()
+      lead: formatLead(existing)
     }
   }
 
@@ -74,8 +102,7 @@ async function createLeadRecord({ listingId, userId }) {
 
   return {
     alreadyExists: false,
-    lead: formatLead(lead),
-    paymentInfo: getLeadPaymentInfo()
+    lead: formatLead(lead)
   }
 }
 
@@ -117,28 +144,7 @@ async function findOrCreateGuestUser(payload) {
   })
 }
 
-async function assertLeadAccess(lead, { userId, phone }) {
-  if (userId) {
-    if (lead.userId !== userId) {
-      throw new Error('Forbidden')
-    }
-    return
-  }
-
-  if (!phone) {
-    throw new Error('Phone is required for guest payment proof upload')
-  }
-
-  if (lead.user.phone !== phone) {
-    throw new Error('Invalid phone for this lead')
-  }
-}
-
 export const leadService = {
-  getPaymentInfo() {
-    return getLeadPaymentInfo()
-  },
-
   async listForAdmin({ listingId, limit = 20 }) {
     const where = {}
 
@@ -193,61 +199,109 @@ export const leadService = {
     })
   },
 
-  async uploadPaymentProof(leadId, file, { userId, phone }) {
-    if (!file) {
-      throw new Error('Payment proof file is required')
-    }
-
-    if (!ALLOWED_PROOF_TYPES.includes(file.type)) {
-      throw new Error('Only JPG, PNG, and WEBP files are allowed')
-    }
-
-    if (file.size > MAX_PROOF_SIZE) {
-      throw new Error('Payment proof must be at most 5MB')
-    }
-
-    const lead = await db.listingLead.findUnique({
-      where: { id: leadId },
+  /** Daftar kos yang diminati oleh user yang login. */
+  async listForUser(userId) {
+    const leads = await db.listingLead.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
       include: {
-        user: {
-          select: {
-            id: true,
-            phone: true
-          }
+        listing: {
+          include: roomTypesWithPhotosInclude
         }
       }
     })
 
-    if (!lead) {
-      throw new Error('Lead not found')
+    return {
+      data: leads.map(toDiminatiCard).filter(Boolean)
     }
+  },
 
-    await assertLeadAccess(lead, { userId, phone })
-
-    if (lead.paymentProofKey) {
-      try {
-        await deleteFromR2(lead.paymentProofKey)
-      } catch (_) {}
-    }
-
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    const key = `leads/${leadId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`
-    const url = await uploadBufferToR2({
-      key,
-      buffer,
-      contentType: file.type
+  /** Kirim OTP ke nomor WhatsApp untuk verifikasi guest sebelum melihat minatnya. */
+  async requestLookupOtp(phone) {
+    const variants = phoneVariants(phone)
+    const user = await db.user.findFirst({
+      where: { phone: { in: variants } }
     })
 
-    const updated = await db.listingLead.update({
-      where: { id: leadId },
+    // Demi privasi, balas sukses walau nomor tak ditemukan — tapi tak kirim OTP.
+    if (!user) {
+      return { data: { message: 'Jika nomor terdaftar, OTP telah dikirim.' } }
+    }
+
+    const otp = generateOtp()
+    const codeHash = await hashOtp(otp)
+    const key = `lead-lookup:${canonicalPhone(phone)}`
+
+    await db.emailOtp.create({
       data: {
-        paymentProofUrl: url,
-        paymentProofKey: key,
-        paymentProofUploadedAt: new Date()
+        email: key,
+        codeHash,
+        expiresAt: new Date(Date.now() + OTP_TTL_MS)
       }
     })
 
-    return formatLead(updated)
+    let waSent = true
+    try {
+      await whatsappService.sendMessage(
+        phone,
+        `🔐 *Kode Verifikasi Kos Diminati*\n\nKode OTP Anda: *${otp}*\n\nKode berlaku 10 menit.`
+      )
+    } catch (error) {
+      waSent = false
+      console.error('Failed to send lead lookup OTP via WhatsApp:', error)
+    }
+
+    return {
+      data: {
+        message: waSent
+          ? 'OTP telah dikirim via WhatsApp.'
+          : 'OTP dibuat, tetapi pengiriman WhatsApp gagal. Gunakan kode preview (mode dev).',
+        // Preview untuk dev/testing (mis. saat device WhatsApp belum aktif).
+        otpPreview: otp
+      }
+    }
+  },
+
+  /** Verifikasi OTP lalu kembalikan kos yang diminati oleh nomor tersebut. */
+  async verifyLookupOtp(phone, otp) {
+    const key = `lead-lookup:${canonicalPhone(phone)}`
+
+    const latestOtp = await db.emailOtp.findFirst({
+      where: { email: key, usedAt: null },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    if (!latestOtp) {
+      throw new Error('OTP not found')
+    }
+
+    if (latestOtp.expiresAt < new Date()) {
+      throw new Error('OTP expired')
+    }
+
+    const valid = await verifyOtp(otp, latestOtp.codeHash)
+    if (!valid) {
+      throw new Error('Invalid OTP')
+    }
+
+    await db.emailOtp.update({
+      where: { id: latestOtp.id },
+      data: { usedAt: new Date() }
+    })
+
+    const variants = phoneVariants(phone)
+    const leads = await db.listingLead.findMany({
+      where: { user: { phone: { in: variants } } },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        listing: {
+          include: roomTypesWithPhotosInclude
+        }
+      }
+    })
+
+    return {
+      data: leads.map(toDiminatiCard).filter(Boolean)
+    }
   }
 }

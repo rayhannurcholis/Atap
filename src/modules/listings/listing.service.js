@@ -4,6 +4,7 @@ import {
   mapRoomTypePhotos,
   roomTypesWithPhotosInclude
 } from '../../utils/listingPhotos.js'
+import { fuzzLocation } from '../../utils/geoMask.js'
 
 function formatListingWithPhotos(listing) {
   const photos = collectListingPhotos(listing.roomTypes)
@@ -17,6 +18,18 @@ function formatListingWithPhotos(listing) {
       ...room,
       photos: mapRoomTypePhotos(room)
     }))
+  }
+}
+
+/** Format untuk publik: sama seperti owner, tapi lokasi di-masking. */
+function formatPublicListing(listing) {
+  const formatted = formatListingWithPhotos(listing)
+  const fuzz = fuzzLocation(listing.latitude, listing.longitude, listing.id)
+  return {
+    ...formatted,
+    latitude: fuzz?.centerLat ?? null,
+    longitude: fuzz?.centerLng ?? null,
+    locationRadiusM: fuzz?.radiusM ?? null
   }
 }
 
@@ -153,7 +166,7 @@ export const listingService = {
       ],
     });
 
-    return listings.map(formatListingWithPhotos);
+    return listings.map(formatPublicListing);
   },
 
   async getPublicListingById(id) {
@@ -169,6 +182,6 @@ export const listingService = {
       throw new Error("Listing not found");
     }
 
-    return formatListingWithPhotos(listing);
+    return formatPublicListing(listing);
   },
 };

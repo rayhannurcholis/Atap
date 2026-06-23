@@ -3,6 +3,7 @@ import {
   collectListingPhotos,
   roomTypesWithPhotosInclude
 } from '../../utils/listingPhotos.js'
+import { fuzzLocation } from '../../utils/geoMask.js'
 
 export const favoriteService = {
   async add(userId, listingId) {
@@ -64,14 +65,17 @@ export const favoriteService = {
       const photos = collectListingPhotos(listing.roomTypes)
       const firstPhoto = photos[0] || null
 
+      const fuzz = fuzzLocation(listing.latitude, listing.longitude, listing.id)
+
       return {
         id: listing.id,
         name: listing.name,
         address: listing.address,
         genderType: listing.genderType,
         isPremium: listing.isPremium,
-        latitude: Number(listing.latitude),
-        longitude: Number(listing.longitude),
+        latitude: fuzz?.centerLat ?? null,
+        longitude: fuzz?.centerLng ?? null,
+        locationRadiusM: fuzz?.radiusM ?? null,
         cheapestPrice,
         thumbnailUrl: firstPhoto?.url || null,
         photos

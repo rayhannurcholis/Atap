@@ -2,14 +2,18 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 
 import { leadController } from './lead.controller.js'
-import { createGuestLeadSchema } from './lead.schema.js'
+import {
+  createGuestLeadSchema,
+  lookupRequestOtpSchema,
+  lookupVerifyOtpSchema
+} from './lead.schema.js'
 
 import { authRequired } from '../../middleware/auth.js'
 import { requireRole } from '../../middleware/role.js'
 
 const leadRoutes = new Hono()
 
-// ADMIN
+// ADMIN — semua lead
 leadRoutes.get(
   '/',
   authRequired(),
@@ -17,13 +21,26 @@ leadRoutes.get(
   leadController.listForAdmin
 )
 
-// PUBLIC — info rekening transfer (sebelum/sesudah klik minat)
-leadRoutes.get('/payment-info', leadController.getPaymentInfo)
+// AUTH USER — kos yang diminati oleh user yang login
+leadRoutes.get(
+  '/me',
+  authRequired(),
+  requireRole('USER'),
+  leadController.listMine
+)
 
-// PUBLIC — upload bukti transfer (opsional, setelah lead dibuat)
+// PUBLIC — guest minta OTP untuk melihat minatnya via nomor WA
 leadRoutes.post(
-  '/records/:leadId/payment-proof',
-  leadController.uploadPaymentProof
+  '/lookup/request-otp',
+  zValidator('json', lookupRequestOtpSchema),
+  leadController.requestLookupOtp
+)
+
+// PUBLIC — guest verifikasi OTP lalu dapat daftar kos yang diminati
+leadRoutes.post(
+  '/lookup',
+  zValidator('json', lookupVerifyOtpSchema),
+  leadController.verifyLookupOtp
 )
 
 // PUBLIC — buat lead guest
