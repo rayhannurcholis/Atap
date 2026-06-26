@@ -13,7 +13,7 @@
     "prisma:migrate:cloud": "bun --env-file=.env.cloud prisma migrate deploy",
     "prisma:migrate": "bunx prisma migrate dev",
     "prisma:generate": "bunx prisma generate",
-    "postinstall": "bunx prisma generate",
+    "postinstall": "prisma generate",
     "prisma:studio": "bunx prisma studio"
   },
   "private": true,

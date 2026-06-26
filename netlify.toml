@@ -1,0 +1,13 @@
+[build]
+  command = "npm install && npx prisma generate"
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  node_bundler = "esbuild"
+  # Prisma client + query engine harus disertakan apa adanya (jangan di-bundle)
+  external_node_modules = ["@prisma/client", ".prisma/client"]
+  included_files = ["node_modules/.prisma/client/**", "prisma/schema.prisma"]

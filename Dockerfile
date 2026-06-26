@@ -20,3 +20,10 @@ EXPOSE 8080
 # migrate deploy dijalankan saat startup (butuh DATABASE_URL), bukan saat build
 # pakai `sh` eksplisit agar tidak bergantung pada bit executable file
 ENTRYPOINT ["sh", "docker-entrypoint.sh"]
+
+apt install -y postgresql postgresql-contrib
+cd /tmp
+sudo -u postgres psql -c "CREATE DATABASE kostsolo;"
+sudo -u postgres psql -c "CREATE USER kostsolo WITH PASSWORD 'atap';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE kostsolo TO kostsolo;"
+sudo -u postgres psql -c "ALTER DATABASE kostsolo OWNER TO kostsolo;"
