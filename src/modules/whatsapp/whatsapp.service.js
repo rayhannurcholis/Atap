@@ -711,6 +711,14 @@ export const whatsappService = {
       throw new Error("FONNTE_TOKEN is not configured");
     }
 
+    // Fonnte API menolak format dengan tanda "+" di depan dan butuh format
+    // internasional tanpa tanda plus (mis. "6285601994175"). Backend
+    // menyimpan phone sebagai "+6285601994175" di DB, jadi harus dinormalisasi
+    // sebelum dikirim. Tanpa normalisasi ini, Fonnte balas success tapi pesan
+    // tidak pernah terkirim ke device WhatsApp tujuan.
+    let target = String(to || "").replace(/\D/g, ""); // buang non-digit, termasuk "+"
+    if (target.startsWith("0")) target = "62" + target.slice(1);
+
     const response = await fetch("https://api.fonnte.com/send", {
       method: "POST",
       headers: {
@@ -718,16 +726,23 @@ export const whatsappService = {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        target: to,
+        target,
         message: text,
         typing: true,
       }),
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
 
+    // Fonnte kadang balas HTTP 200 dengan {status:false, reason:"..."} bila
+    // device tidak ready, target diblokir, saldo habis, dll. Anggap itu
+    // sebagai gagal supaya caller bisa surface error yang jelas.
     if (!response.ok || result?.status === false) {
-      console.error("Fonnte send failed:", result);
+      console.error("Fonnte send failed:", {
+        target,
+        httpStatus: response.status,
+        body: result,
+      });
       throw new Error(
         result?.reason ||
           result?.detail ||
@@ -736,7 +751,7 @@ export const whatsappService = {
       );
     }
 
-    console.log("Fonnte sent:", result);
+    console.log("Fonnte sent:", { target, result });
     return result;
   },
 
