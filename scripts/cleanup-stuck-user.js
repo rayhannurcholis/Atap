@@ -93,13 +93,15 @@ async function listStuck() {
     orderBy: { createdAt: 'desc' }
   })
 
+  const pad = (v, n) => String(v ?? '-').padEnd(n)
+
   console.log('\n=== USER (pencari) belum verifikasi email, dibuat ≤7 hari ===')
   if (stuckUsers.length === 0) {
     console.log('  (kosong)')
   } else {
     for (const u of stuckUsers) {
       console.log(
-        `  ${u.createdAt.toISOString()}  ${u.email.padEnd(40)}  ${u.name}`
+        `  ${u.createdAt.toISOString()}  ${pad(u.email, 40)}  ${pad(u.name, 20)}`
       )
     }
   }
@@ -110,7 +112,7 @@ async function listStuck() {
   } else {
     for (const u of recentOwners) {
       console.log(
-        `  ${u.createdAt.toISOString()}  ${(u.phone || '-').padEnd(18)}  ${(u.email || '-').padEnd(40)}  ${u.name}`
+        `  ${u.createdAt.toISOString()}  ${pad(u.phone, 18)}  ${pad(u.email, 40)}  ${pad(u.name, 20)}`
       )
     }
   }
@@ -206,6 +208,12 @@ async function deleteUser(user, { dryRun }) {
       await tx.emailOtp.deleteMany({ where: { email: user.phone } })
     }
     await tx.adminSessionLog.deleteMany({ where: { adminId: user.id } })
+    // OwnerProfile dan AdminSessionLog tidak punya onDelete:Cascade di
+    // schema.prisma, jadi harus dihapus manual sebelum User dihapus —
+    // kalau tidak, akan kena FK constraint violation (P2003).
+    if (user.ownerProfile) {
+      await tx.ownerProfile.delete({ where: { userId: user.id } })
+    }
     await tx.user.delete({ where: { id: user.id } })
   })
 
