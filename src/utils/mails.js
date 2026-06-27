@@ -1,12 +1,18 @@
 import nodemailer from 'nodemailer'
 
+// Google App Password ditampilkan UI sebagai "xxxx xxxx xxxx xxxx" (4×4+3 spasi)
+// tapi yang VALID untuk SMTP basic auth adalah 16 char rapat tanpa spasi.
+// Banyak orang paste dengan spasi → 535 BadCredentials. Strip di sini supaya
+// flow-nya idiot-proof: simpan dengan/tanpa spasi sama-sama jalan.
+const smtpPass = (process.env.SMTP_PASS || '').replace(/\s+/g, '')
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT),
   secure: false,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
+    pass: smtpPass
   }
 })
 
