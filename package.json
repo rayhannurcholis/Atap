@@ -14,7 +14,10 @@
     "prisma:migrate": "bunx prisma migrate dev",
     "prisma:generate": "bunx prisma generate",
     "postinstall": "prisma generate",
-    "prisma:studio": "bunx prisma studio"
+    "prisma:studio": "bunx prisma studio",
+    "cleanup:stuck": "bun scripts/cleanup-stuck-user.js",
+    "cleanup:stuck:cloud": "bun --env-file=.env.cloud scripts/cleanup-stuck-user.js",
+    "cleanup:stuck:campus": "bun --env-file=.env.campus scripts/cleanup-stuck-user.js"
   },
   "private": true,
   "devDependencies": {
