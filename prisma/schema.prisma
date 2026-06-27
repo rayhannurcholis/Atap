@@ -8,6 +8,246 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                      String            @id @default(cuid())
+  role                    Role
+  email                   String?           @unique
+  phone                   String?           @unique
+  name                    String
+  passwordHash            String?
+  isEmailVerified         Boolean           @default(false)
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  adminLogs               AdminSessionLog[]
+  sentMessages            ChatMessage[]
+  ownerThreads            ChatThread[]      @relation("OwnerChatThreads")
+  studentThreads          ChatThread[]      @relation("StudentChatThreads")
+  favorites               FavoriteListing[]
+  listings                KostListing[]     @relation("OwnerListings")
+  listingLeads            ListingLead[]
+  reviewedListingReports  ListingReport[]   @relation("ListingReportReviewer")
+  submittedListingReports ListingReport[]   @relation("ListingReportUser")
+  listingViews            ListingView[]
+  ownerProfile            OwnerProfile?
+}
+
+model EmailOtp {
+  id        String    @id @default(cuid())
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}
+
+model OwnerProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  kostName  String?
+  location  String?
+  contact   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model WhatsAppOnboardingSession {
+  id            String   @id @default(cuid())
+  phone         String   @unique
+  step          Int      @default(1)
+  name          String?
+  kostName      String?
+  location      String?
+  contact       String?
+  expiresAt     DateTime
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+}
+
+model KostListing {
+  id              String            @id @default(cuid())
+  ownerId         String
+  name            String
+  address         String
+  description     String
+  contactNumber   String
+  status          ListingStatus     @default(PENDING)
+  isPremium       Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  rejectionReason String?
+  latitude        Decimal           @db.Decimal(10, 7)
+  longitude       Decimal           @db.Decimal(10, 7)
+  genderType      GenderType
+  rules           String[]
+  chatThreads     ChatThread[]
+  favoritedBy     FavoriteListing[]
+  owner           User              @relation("OwnerListings", fields: [ownerId], references: [id], onDelete: Cascade)
+  leads           ListingLead[]
+  reports         ListingReport[]
+  views           ListingView[]
+  roomTypes       RoomType[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([isPremium])
+  @@index([createdAt])
+}
+
+model RoomType {
+  id             String      @id @default(cuid())
+  listingId      String
+  name           String
+  price          Int
+  size           String
+  facilities     String[]
+  availableCount Int
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  photos         RoomPhoto[]
+  listing        KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+model RoomPhoto {
+  id         String   @id @default(cuid())
+  roomTypeId String
+  key        String   @unique
+  url        String
+  createdAt  DateTime @default(now())
+  mimeType   String?
+  sizeBytes  Int?
+  sortOrder  Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+
+  @@index([roomTypeId])
+}
+
+model AdminSessionLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  admin     User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}
+
+model FavoriteListing {
+  id        String      @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime    @default(now())
+  listing   KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId])
+  @@index([listingId])
+}
+
+model ChatThread {
+  id        String        @id @default(cuid())
+  listingId String
+  studentId String
+  ownerId   String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+  listing   KostListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  owner     User          @relation("OwnerChatThreads", fields: [ownerId], references: [id], onDelete: Cascade)
+  student   User          @relation("StudentChatThreads", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, studentId, ownerId])
+  @@index([listingId])
+  @@index([studentId])
+  @@index([ownerId])
+  @@index([updatedAt])
+}
+
+model ChatMessage {
+  id       String     @id @default(cuid())
+  threadId String
+  senderId String
+  message  String
+  sentAt   DateTime   @default(now())
+  readAt   DateTime?
+  sender   User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  thread   ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([senderId])
+  @@index([sentAt])
+}
+
+model ListingView {
+  id         String      @id @default(cuid())
+  listingId  String
+  userId     String?
+  sessionKey String?
+  viewedAt   DateTime    @default(now())
+  listing    KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user       User?       @relation(fields: [userId], references: [id])
+
+  @@index([listingId])
+  @@index([userId])
+  @@index([sessionKey])
+  @@index([viewedAt])
+}
+
+model ListingReport {
+  id           String               @id @default(cuid())
+  listingId    String
+  userId       String
+  reason       ListingReportReason
+  note         String?
+  createdAt    DateTime             @default(now())
+  action       ListingReportAction?
+  reviewedAt   DateTime?
+  reviewedById String?
+  status       ListingReportStatus  @default(PENDING)
+  listing      KostListing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reviewedBy   User?                @relation("ListingReportReviewer", fields: [reviewedById], references: [id])
+  user         User                 @relation("ListingReportUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@index([userId])
+  @@index([status])
+}
+
+model ListingLead {
+  id                     String      @id @default(cuid())
+  listingId              String
+  userId                 String
+  createdAt              DateTime    @default(now())
+  paymentProofUrl        String?
+  paymentProofKey        String?
+  paymentProofUploadedAt DateTime?
+  listing                KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user                   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, userId])
+  @@index([listingId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
 enum Role {
   USER
   OWNER
@@ -34,222 +274,6 @@ enum ListingReportReason {
   PENIPUAN
 }
 
-model User {
-  id              String   @id @default(cuid())
-  role            Role
-  email           String?  @unique
-  phone           String?  @unique
-  name            String
-  passwordHash    String?
-  isEmailVerified Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  ownerProfile OwnerProfile?
-  adminLogs    AdminSessionLog[]
-  listings     KostListing[]     @relation("OwnerListings")
-
-  favorites      FavoriteListing[]
-  studentThreads ChatThread[]      @relation("StudentChatThreads")
-  ownerThreads   ChatThread[]      @relation("OwnerChatThreads")
-  sentMessages   ChatMessage[]
-  listingViews   ListingView[]
-  listingLeads ListingLead[]
-
-  submittedListingReports ListingReport[] @relation("ListingReportUser")
-  reviewedListingReports  ListingReport[] @relation("ListingReportReviewer")
-}
-
-model EmailOtp {
-  id        String    @id @default(cuid())
-  email     String
-  codeHash  String
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([email])
-}
-
-model OwnerProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  kostName  String?
-  location  String?
-  contact   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-}
-
-model WhatsAppOnboardingSession {
-  id            String   @id @default(cuid())
-  phone         String   @unique
-  step          Int      @default(1)
-  name          String?
-  kostName      String?
-  location      String?
-  contact       String?
-  expiresAt     DateTime
-  lastMessageAt DateTime @default(now())
-  createdAt     DateTime @default(now())
-}
-
-model KostListing {
-  id              String        @id @default(cuid())
-  ownerId         String
-  name            String
-  address         String        @db.Text
-  latitude        Decimal       @db.Decimal(10, 7)
-  longitude       Decimal       @db.Decimal(10, 7)
-  genderType      GenderType
-  description     String        @db.Text
-  rules           String[]
-  contactNumber   String
-  status          ListingStatus @default(PENDING)
-  isPremium       Boolean       @default(false)
-  rejectionReason String?       @db.Text
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  owner     User       @relation("OwnerListings", fields: [ownerId], references: [id], onDelete: Cascade)
-  roomTypes RoomType[]
-
-  favoritedBy FavoriteListing[]
-  chatThreads ChatThread[]
-  views       ListingView[]
-  reports     ListingReport[]
-  leads ListingLead[]
-
-  @@index([ownerId])
-  @@index([status])
-  @@index([isPremium])
-  @@index([createdAt])
-}
-
-model RoomType {
-  id             String   @id @default(cuid())
-  listingId      String
-  name           String
-  price          Int
-  size           String
-  facilities     String[]
-  availableCount Int
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  listing KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  photos  RoomPhoto[]
-
-  @@index([listingId])
-}
-
-model RoomPhoto {
-  id         String   @id @default(cuid())
-  roomTypeId String
-  key        String   @unique
-  url        String
-  mimeType   String?
-  sizeBytes  Int?
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  roomType RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
-
-  @@index([roomTypeId])
-}
-
-model AdminSessionLog {
-  id        String   @id @default(cuid())
-  adminId   String
-  ip        String?
-  userAgent String?
-  createdAt DateTime @default(now())
-
-  admin User @relation(fields: [adminId], references: [id])
-
-  @@index([adminId])
-}
-
-model PasswordResetToken {
-  id        String    @id @default(cuid())
-  email     String
-  tokenHash String
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([email])
-}
-
-model FavoriteListing {
-  id        String   @id @default(cuid())
-  userId    String
-  listingId String
-  createdAt DateTime @default(now())
-
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  listing KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, listingId])
-  @@index([userId])
-  @@index([listingId])
-}
-
-model ChatThread {
-  id        String   @id @default(cuid())
-  listingId String
-  studentId String
-  ownerId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  listing  KostListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  student  User          @relation("StudentChatThreads", fields: [studentId], references: [id], onDelete: Cascade)
-  owner    User          @relation("OwnerChatThreads", fields: [ownerId], references: [id], onDelete: Cascade)
-  messages ChatMessage[]
-
-  @@unique([listingId, studentId, ownerId])
-  @@index([listingId])
-  @@index([studentId])
-  @@index([ownerId])
-  @@index([updatedAt])
-}
-
-model ChatMessage {
-  id       String    @id @default(cuid())
-  threadId String
-  senderId String
-  message  String    @db.Text
-  sentAt   DateTime  @default(now())
-  readAt   DateTime?
-
-  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  sender User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@index([threadId])
-  @@index([senderId])
-  @@index([sentAt])
-}
-
-model ListingView {
-  id         String   @id @default(cuid())
-  listingId  String
-  userId     String?
-  sessionKey String?
-  viewedAt   DateTime @default(now())
-
-  listing KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  user    User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([listingId])
-  @@index([userId])
-  @@index([sessionKey])
-  @@index([viewedAt])
-}
-
 enum ListingReportStatus {
   PENDING
   DISMISSED
@@ -259,43 +283,4 @@ enum ListingReportStatus {
 enum ListingReportAction {
   DISMISS
   DEACTIVATE_LISTING
-}
-
-model ListingReport {
-  id          String               @id @default(cuid())
-  listingId    String
-  userId       String
-  reason       ListingReportReason
-  note         String?
-  status       ListingReportStatus  @default(PENDING)
-  reviewedAt   DateTime?
-  reviewedById String?
-  action       ListingReportAction?
-  createdAt    DateTime             @default(now())
-
-  listing      KostListing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  user         User                 @relation("ListingReportUser", fields: [userId], references: [id], onDelete: Cascade)
-  reviewedBy   User?                @relation("ListingReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-
-  @@index([listingId])
-  @@index([userId])
-  @@index([status])
-}
-
-model ListingLead {
-  id                     String    @id @default(cuid())
-  listingId              String
-  userId                 String
-  paymentProofUrl        String?
-  paymentProofKey        String?
-  paymentProofUploadedAt DateTime?
-  createdAt              DateTime  @default(now())
-
-  listing KostListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([listingId, userId])
-  @@index([listingId])
-  @@index([userId])
-  @@index([createdAt])
 }
