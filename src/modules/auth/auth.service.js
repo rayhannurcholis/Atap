@@ -45,7 +45,7 @@ export async function registerUser(data) {
   const otp = generateOtp()
   const codeHash = await hashOtp(otp)
 
-  await db.emailOtp.create({
+  const otpRecord = await db.emailOtp.create({
     data: {
       email: data.email,
       codeHash,
@@ -53,7 +53,26 @@ export async function registerUser(data) {
     }
   })
 
-  await sendOtpEmail(data.email, otp)
+  // Email OTP wajib untuk verifikasi user pencari. Kalau pengiriman email
+  // gagal (mis. kredensial SMTP salah), rollback user + OTP yang baru dibuat
+  // supaya database tidak nyangkut record yang tidak bisa di-verify, lalu
+  // kembalikan pesan error yang menjelaskan masalah email service.
+  try {
+    await sendOtpEmail(data.email, otp)
+  } catch (mailErr) {
+    console.error('[REGISTER USER] Failed to send OTP email:', mailErr)
+
+    await db.emailOtp
+      .delete({ where: { id: otpRecord.id } })
+      .catch(() => {})
+    await db.user.delete({ where: { id: user.id } }).catch(() => {})
+
+    return {
+      error:
+        'Layanan email sedang bermasalah, OTP tidak dapat dikirim. Coba lagi nanti atau hubungi admin.',
+      status: 503
+    }
+  }
 
   return {
     status: 201,
@@ -135,7 +154,7 @@ export async function resendUserOtp(data) {
   const otp = generateOtp()
   const codeHash = await hashOtp(otp)
 
-  await db.emailOtp.create({
+  const otpRecord = await db.emailOtp.create({
     data: {
       email: data.email,
       codeHash,
@@ -143,7 +162,19 @@ export async function resendUserOtp(data) {
     }
   })
 
-  await sendOtpEmail(data.email, otp)
+  try {
+    await sendOtpEmail(data.email, otp)
+  } catch (mailErr) {
+    console.error('[RESEND OTP] Failed to send email:', mailErr)
+    await db.emailOtp
+      .delete({ where: { id: otpRecord.id } })
+      .catch(() => {})
+    return {
+      error:
+        'Layanan email sedang bermasalah, OTP tidak dapat dikirim. Coba lagi nanti.',
+      status: 503
+    }
+  }
 
   return {
     data: {
@@ -212,7 +243,7 @@ export async function forgotUserPassword(data) {
   const rawToken = generateResetToken()
   const tokenHash = await hashToken(rawToken)
 
-  await db.passwordResetToken.create({
+  const tokenRecord = await db.passwordResetToken.create({
     data: {
       email: data.email,
       tokenHash,
@@ -222,7 +253,20 @@ export async function forgotUserPassword(data) {
 
   const resetLink = `http://localhost:3000/reset-password?token=${rawToken}&email=${data.email}`
 
-  await sendResetPasswordEmail(data.email, resetLink)
+  try {
+    await sendResetPasswordEmail(data.email, resetLink)
+  } catch (mailErr) {
+    console.error('[FORGOT PASSWORD] Failed to send email:', mailErr)
+    await db.passwordResetToken
+      .delete({ where: { id: tokenRecord.id } })
+      .catch(() => {})
+    // Tetap return pesan generic agar tidak bocorkan info SMTP ke user.
+    return {
+      data: {
+        message: 'If the email is registered, a reset link has been sent.'
+      }
+    }
+  }
 
   console.log(`[PASSWORD RESET] ${data.email} -> ${rawToken}`)
 
@@ -338,12 +382,25 @@ export async function registerOwner(data) {
     }
   })
 
-  await sendOtpEmail(owner.email, otp)
+  // Owner login pakai OTP via WhatsApp (lihat requestOwnerOtp), bukan email.
+  // Email OTP di sini hanya sebagai notifikasi tambahan, jadi pengiriman
+  // email-nya best-effort: kalau SMTP error, tetap return sukses agar akun
+  // owner berhasil tercatat dan bisa langsung login lewat WhatsApp.
+  let emailDelivered = true
+  try {
+    await sendOtpEmail(owner.email, otp)
+  } catch (mailErr) {
+    emailDelivered = false
+    console.error('[REGISTER OWNER] Failed to send OTP email:', mailErr)
+  }
 
   return {
     status: 201,
     data: {
-      message: 'Owner registered successfully. OTP has been sent to email.',
+      message: emailDelivered
+        ? 'Owner registered successfully. OTP has been sent to email.'
+        : 'Owner registered successfully. OTP email tidak terkirim — silakan login langsung lewat WhatsApp.',
+      emailDelivered,
       user: {
         id: owner.id,
         name: owner.name,
