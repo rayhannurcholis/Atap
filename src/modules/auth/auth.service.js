@@ -251,7 +251,7 @@ export async function forgotUserPassword(data) {
     }
   })
 
-  const resetLink = `http://localhost:3000/reset-password?token=${rawToken}&email=${data.email}`
+  const resetLink = `${env.FRONTEND_PUBLIC_URL}/reset-password?token=${rawToken}&email=${encodeURIComponent(data.email)}`
 
   try {
     await sendResetPasswordEmail(data.email, resetLink)

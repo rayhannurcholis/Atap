@@ -7,6 +7,15 @@ export const env = {
   JWT_REMEMBER_EXPIRES_DAYS: Number(process.env.JWT_REMEMBER_EXPIRES_DAYS ?? 30),
   /** Base URL untuk URL foto (proxy). Contoh: http://localhost:5173/api */
   API_PUBLIC_URL: process.env.API_PUBLIC_URL || 'http://localhost:8080',
+  /**
+   * Base URL frontend untuk membangun link absolut di email
+   * (mis. link reset password). Tanpa trailing slash. Set ke domain
+   * produksi di env Netlify backend supaya link email tidak nyangkut
+   * ke localhost.
+   */
+  FRONTEND_PUBLIC_URL: (
+    process.env.FRONTEND_PUBLIC_URL || 'https://atapsolo.netlify.app'
+  ).replace(/\/+$/, ''),
   LEAD_PAYMENT_BANK_NAME: process.env.LEAD_PAYMENT_BANK_NAME || 'BCA',
   LEAD_PAYMENT_ACCOUNT_NUMBER:
     process.env.LEAD_PAYMENT_ACCOUNT_NUMBER || '1234567890',
